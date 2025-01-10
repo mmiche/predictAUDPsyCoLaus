@@ -1,0 +1,109 @@
+---
+title: "predictAUDPsyCoLaus vignette"
+author: "Marcel Miché"
+date: "2025-01-10"
+output:
+  html_document:
+    theme: yeti
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{predictAUDPsyCoLaus vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Complete analysis code
+
+This vignette accompanies the R package predictAUDPsyCoLaus, which is an R package that serves as supplementary material to a publication. In that publication, we developed and evaluated a clinical prediction model of new onset alcohol use disorder among adults from a representative general community sample.
+
+## Load these R packages
+
+```{r echo=TRUE, eval = FALSE}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ranger)
+library(mysml)
+library(ggplot2)
+library(cowplot)
+library(gridExtra)
+library(parallel)
+library(pbapply)
+library(pmcalibration)
+library(pminternal)
+library(ClinicalUtilityRecal)
+library(rms)
+library(precrec)
+library(samplesizedev)
+library(modgo)
+```
+
+## Dummy dataset
+
+The original study data cannot be published, due to data protection laws. The dummy dataset d is automatically loaded when this package is loaded. This dummy dataset contains the same column names as the original dataset. However, there is not a single 100% match of this simulated data with any row of the original data. Nonetheless, superficially, both datasets lead to somewhat similar results. Of course, this is not the main aim. The main aim is that the results of the simulated data are not outlandishly different from the original results. After all, the 100% transparency of the analysis code is all that this R package 'predictAUDPsyCoLaus' shall demonstrate.
+
+# Original study code start
+
+# Content:
+# 1. Compute net benefit and visualize the results.
+# 2. Compute calibration and visualize the results.
+# 3. Compute discrimination and visualize the results.
+
+# Repeated k-fold cross-validation
+# --------
+```{r echo=TRUE, eval = FALSE}
+set.seed(1)
+# 5-fold CV = 5 80/20 splits; 20 seeds = 20 repetitions of 5 fold = 100 final test results.
+seeds <- sample(1:10e6, size=20)
+cvLs <- mysml::myRepeatedkFoldcv(data=d, outcome="newAud", folds = 5, stratify = TRUE, seeds=seeds)
+
+TrainLs <- cvLs$TrainLs
+TestLs <- cvLs$TestLs
+```
+
+## Repeated k-fold cross-validation
+
+```{r echo=TRUE, eval = FALSE}
+# Make empty named list:
+predProbsLs <- sapply(c("logreg", "rf"),function(x) NULL) #
+preds <- c("Sex", "iSES15", "MARIE", "MDDPD2", "ADAPU2", "Week_ALC_type6", "smokingstatus", "inactivity")
+fmla <- formula(paste0("newAud ~ ", paste0(preds, collapse = "+")))
+fmla.f <- formula(paste0("factor(newAud) ~ ", paste0(preds, collapse = "+")))
+startTime <- Sys.time()
+for(m in 1:length(TrainLs)) {
+    # Select training and test subset
+    Train.m <- TrainLs[[m]]
+    Test.m <- TestLs[[m]]
+    
+    # Logistic regression
+    # -------------------
+    logreg_m <- applyLogreg(dataTrain=Train.m, dataTest=Test.m, frmla = fmla, outcome = "newAud")
+    predProbsLs[["logreg"]][[m]] <- logreg_m$TestCV
+    
+    # Random forest
+    # -------------
+    set.seed(1)
+    rndmFrst_m <- applyRandomForest(dataTrain=Train.m, dataTest=Test.m, frmla.f = fmla.f, outcome = "newAud")
+    predProbsLs[["rf"]][[m]] <- rndmFrst_m$TestCV
+}
+endTime <- Sys.time()
+difftime(endTime, startTime)
+```
+
+The list predProbs contains the predicted probabilities and the observed outcome from all cross-validations.
+
+```{r echo=TRUE, eval = FALSE}
+# Use standard recalibration of random forest pred. probs., before comparing logreg and rf. Reason: Niculescu-Mizil & Caruana (2005; https://doi.org/10.1145/1102351.1102430, page 5:
+# "If we add noise to the trees that bagging is averaging over, this noise will cause some [...]. We observe this effect most strongly with random forests [...]. Post-calibration seems to help mitigate this problem."
+for(i in 1:length(predProbsLs[["rf"]])) {
+    recalProbs <-
+        ClinicalUtilityRecal::stdRecal(y=predProbsLs[["rf"]][[i]]$observed,
+                                       p=predProbsLs[["rf"]][[i]]$predicted)
+    predProbsLs[["rf"]][[i]]$predicted <- recalProbs$p.std
+}
+```
+

@@ -1,0 +1,46 @@
+#' Apply logistic regression.
+#
+#' @description Apply the logistic regression model to the data.
+#
+#' @param dataTest Test subset (20 percent) of the full sample.
+#
+#' @param dataTrain Training subset (80 percent) of the full sample.
+#
+#' @param frmla An object of the class \code{formula}, used for the logistic regression model.
+#
+#' @param outcome Character string. Name of the outcome variable, in this study it was 'newAud' (new onset of alcohol use disorder).
+#
+#' @return a list with two data.frames as elements (names: ApparentCV, TestCV), each data.frame having three columns:
+#' \enumerate{
+#' \item observed Observed outcome (0 = absent, 1 = present).
+#' \item predicted Model-based probability estimation of the outcome being present.
+#' \item ids Row numbers of the total sample (before data has been split into training and test subsets).
+#' }
+#
+#' @author Marcel Miché
+#
+#' @examples
+#' # See the accompanying R script and this package's vignette,
+#' # section Repeated k-fold cross-validation.
+#
+#' @export
+#
+applyLogreg <- function(dataTrain=NULL, dataTest=NULL, frmla=NULL, outcome="y") {
+    
+    if(is.null(frmla)) {
+        glmPred <- glm(y ~ ., family = binomial(link="logit"), data = dataTrain)
+    } else {
+        glmPred <- glm(frmla, family = binomial(link="logit"), data = dataTrain)
+    }
+    apparentCV <- predict(object=glmPred, newdata=dataTrain, type = "response")
+    glmCV <- predict(object=glmPred, newdata=dataTest, type = "response")
+    
+    logregOut <- list()
+    logregOut[["ApparentCV"]] <- data.frame(observed=dataTrain[,outcome],
+                                            predicted=apparentCV,
+                                            ids=rownames(dataTrain))
+    logregOut[["TestCV"]] <- data.frame(observed=dataTest[,outcome],
+                                        predicted=glmCV,
+                                        ids=rownames(dataTest))
+    return(logregOut)
+}
