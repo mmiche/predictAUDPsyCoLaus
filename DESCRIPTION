@@ -29,3 +29,5 @@ Suggests:
     rmarkdown
 VignetteBuilder: knitr
 LazyData: true
+URL: https://github.com/mmiche/predictAUDPsyCoLaus
+BugReports: https://github.com/mmiche/predictAUDPsyCoLaus/issues
