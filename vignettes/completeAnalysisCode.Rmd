@@ -46,12 +46,7 @@ library(modgo)
 
 The original study data cannot be published, due to data protection laws. The dummy dataset d is automatically loaded when this package is loaded. This dummy dataset contains the same column names as the original dataset. However, there is not a single 100% match of this simulated data with any row of the original data. Nonetheless, superficially, both datasets lead to somewhat similar results. Of course, this is not the main aim. The main aim is that the results of the simulated data are not outlandishly different from the original results. After all, the 100% transparency of the analysis code is all that this R package 'predictAUDPsyCoLaus' shall demonstrate.
 
-# Original study code start
-
-# Content:
-# 1. Compute net benefit and visualize the results.
-# 2. Compute calibration and visualize the results.
-# 3. Compute discrimination and visualize the results.
+# Analysis code start
 
 # Repeated k-fold cross-validation
 # --------
