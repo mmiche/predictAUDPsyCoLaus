@@ -15,6 +15,7 @@
 #
 #' @author Marcel Miché
 #
+#' @importFrom magrittr %>%
 #' @importFrom ggplot2 ggplot aes facet_wrap geom_line
 #' @importFrom tidyr pivot_longer
 #

@@ -6,11 +6,7 @@
 #
 #' @param data Dataset which provides the required columns (see \strong{Details}).
 #
-#' @param model_fun See Argument \code{model_fun} in \code{pminternal::boot_optimism}.
-#
 #' @param outcome Character string. Name of the outcome variable, in this study it was 'newAud' (new onset of alcohol use disorder).
-#
-#' @param pred_fun See Argument \code{pred_fun} in \code{pminternal::boot_optimism}.
 #
 #' @details Dataset must contain the outcome and all eight predictor variables. This function is a modification of the function \code{boot_optimism} of the R package \code{pminternal}.
 #' Marcel Miché modified the original code. Enter predictAUDPsyCoLausDev::boot_optimism1 in the R console to see the raw code, including the code that I outcommented.
@@ -21,6 +17,7 @@
 #
 #' @importFrom parallel clusterExport makeCluster stopCluster
 #' @importFrom pbapply pbapply
+#' @importFrom stats binomial family glm predict
 #
 #' @examples
 #' # See the accompanying R script and this package's vignette,
@@ -34,18 +31,30 @@
 #
 #' @export
 #
-# Remove these original function arguments (reason: not needed): score_fun, method.
-boot_optimism1 <- function (data, outcome, model_fun, pred_fun, B = 200)
-{
+boot_optimism1 <- function (data, outcome, B = 200) {
     # dots <- list(...)
     # method <- match.arg(method)
     # if (missing(score_fun)) {
-        score_fun <- pminternal::score_binary
+    #     score_fun <- score_binary
     # }
+    
+    # --------------------------------------
+    # This is a minimally modified version of model_fun and of
+    # pred_fun, see Examples of function pminternal::boot_optimism.
+    # pminternal package version 0.0.1
+    model_fun <- function(data){
+        glm(newAud ~ ., data=data, family="binomial")
+    }
+    
+    pred_fun <- function(model, data){
+        predict(model, newdata=data, type="response")
+    }
+    # --------------------------------------
+    
     fit <- model_fun(data = data)
     p_app <- pred_fun(model = fit, data = data)
     y <- data[[outcome]]
-    score_app <- score_fun(y = y, p = p_app, ...)
+    # score_app <- score_fun(y = y, p = p_app, ...)
     n <- nrow(data)
     indices <- matrix(integer(1), nrow = n, ncol = B)
     W <- matrix(TRUE, nrow = n, ncol = B)
@@ -53,82 +62,73 @@ boot_optimism1 <- function (data, outcome, model_fun, pred_fun, B = 200)
         indices[, i] <- s <- sample(n, replace = TRUE)
         W[s, i] <- FALSE
     }
-    # # This code chunk is not needed, just use method boot.
     # if (method == ".632") {
     #     nomit <- apply(W, 1, sum)
     #     if (any(nomit == 0)) {
-    #         stop("not every observation omitted at least once ",
+    #         stop("not every observation omitted at least once ", 
     #              "in bootstrap samples.\nRe--run with larger B")
     #     }
     #     wt <- 1 - (1/B - apply(W/nomit, 2, sum)/n)
     # }
     # else wt <- NULL
+    # if ("cores" %in% names(dots)) {
+    #     cores <- dots[["cores"]]
+    # }
+    # else {
+    #     cores <- 1
+    # }
+    cores <- 1
     wt <- NULL
     method <- "boot"
-    if ("cores" %in% names(dots)) {
-        cores <- dots[["cores"]]
-    }
-    else {
-        cores <- 1
-    }
     cl <- parallel::makeCluster(cores)
-    parallel::clusterExport(cl,
-                            varlist =
-                                c("B", "data", "indices", "wt", "method",
-                                  "model_fun", "pred_fun", "score_fun"),
+    parallel::clusterExport(cl, varlist = c("B", "data", "indices", 
+                                            "wt", "method", "model_fun", "pred_fun"),#, "score_fun"), 
                             envir = environment())
-
     S <- pbapply::pblapply(seq(B), function(i) {
         data_i <- data[indices[, i], ]
+        # model_i <- model_fun(data = data_i, ...)
         model_i <- model_fun(data = data_i)
         # if (method == "boot") {
+            # p_orig <- pred_fun(model = model_i, data = data, 
+            #                    ...)
             p_orig <- pred_fun(model = model_i, data = data)
-
-            p_boot <- pred_fun(model = model_i, data = data_i)
-
-            score_orig <- score_fun(y = data[[outcome]], p = p_orig,
-                                    ...)
-            score_boot <- score_fun(y = data_i[[outcome]], p = p_boot,
-                                    ...)
-            optimism <- score_boot - score_orig
-
+            # p_boot <- pred_fun(model = model_i, data = data_i, 
+            #                    ...)
+            # score_orig <- score_fun(y = data[[outcome]], p = p_orig, 
+            #                         ...)
+            # score_boot <- score_fun(y = data_i[[outcome]], p = p_boot, 
+            #                         ...)
+            # optimism <- score_boot - score_orig
         # }
-        # # This code chunk is not needed, just use method boot.
         # else {
         #     p_orig <- score_orig <- NULL
         #     data_omit_i <- data[-indices[, i], ]
-        #     p_omit <- pred_fun(model = model_i, data = data_omit_i,
+        #     p_omit <- pred_fun(model = model_i, data = data_omit_i, 
         #                        ...)
-        #     score_omit <- score_fun(y = data_omit_i[[outcome]],
+        #     score_omit <- score_fun(y = data_omit_i[[outcome]], 
         #                             p = p_omit, ...)
         #     optimism <- 0.632 * (score_app - score_omit * wt[i])
         # }
-        list(optimism = optimism, p_orig = p_orig, score_orig = score_orig)
+        # list(optimism = optimism, p_orig = p_orig, score_orig = score_orig)
+        list(p_orig = p_orig)
     }, cl = cl)
     parallel::stopCluster(cl)
-    opt <- do.call(rbind, lapply(S, function(x) x$optimism))
-    opt <- apply(opt, 2, mean)
-    bcorr <- score_app - opt
+    # opt <- do.call(rbind, lapply(S, function(x) x$optimism))
+    # opt <- apply(opt, 2, mean)
+    # bcorr <- score_app - opt
     # if (method == "boot") {
-        simple_boot <- do.call(rbind, lapply(S, function(x) x$score_orig))
-        simple_boot <- apply(simple_boot, 2, mean)
-        stability <- do.call(cbind, lapply(S, function(x) x$p_orig))
-        stability <- cbind(p_app = p_app, stability)
+    #     simple_boot <- do.call(rbind, lapply(S, function(x) x$score_orig))
+    #     simple_boot <- apply(simple_boot, 2, mean)
+    #     stability <- do.call(cbind, lapply(S, function(x) x$p_orig))
+    #     stability <- cbind(p_app = p_app, stability)
     # }
     # else {
     #     simple_boot <- stability <- NULL
     # }
-    # out <- list(apparent = score_app, optimism = opt, corrected = bcorr,
+    # out <- list(apparent = score_app, optimism = opt, corrected = bcorr, 
     #             simple = simple_boot, stability = stability, y = y, method = method)
     # class(out) <- "internal_boot"
     # return(out)
-
-    # return(S)
-
-    for(remove in 1:length(S)) {
-        S[[remove]]$optimism <- NULL
-        S[[remove]]$score_orig <- NULL
-    }
     out <- as.data.frame(S)
     return(out)
 }

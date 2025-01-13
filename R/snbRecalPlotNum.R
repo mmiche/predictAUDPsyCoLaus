@@ -43,6 +43,42 @@
 #' @export
 #
 snbRecalPlotNum <- function (p, p.std, p.const, y, r, stdErrThresh = 1, risk.model.std = TRUE) {
+    
+    # --------------------------------------
+    # This is a complete copy of ClinicalUtilityRecal:::snb.t
+    # and of ClinicalUtilityRecal:::snbVar.tmax
+    # ClinicalUtilityRecal package version 0.1.0
+    snb.t <- function (par, y, p, r) {
+        TPR <- mean(p[y == 1] > par)
+        FPR <- mean(p[y == 0] > par)
+        y.bar <- mean(y)
+        sNB <- (TPR - ((r/(1 - r)) * ((1 - y.bar)/y.bar) * FPR))
+        return(sNB)
+    }
+    
+    snbVar.tmax <- function (tVec, y, p, r) {
+        if (length(p) != length(y)) 
+            stop("length of p does not match length y")
+        if (any(tVec < 0) | any(tVec > 1)) 
+            stop("t must be between 0 and 1")
+        n <- length(p)
+        snbVarVec <- rep(NA, length(tVec))
+        for (j in 1:length(tVec)) {
+            p11 <- mean(y == 1 & p >= tVec[j])
+            p10 <- mean(y == 0 & p >= tVec[j])
+            p01 <- mean(y == 1 & p < tVec[j])
+            p00 <- mean(y == 0 & p < tVec[j])
+            k <- r/(1 - r)
+            sum <- (p10 * (p10 + p01) * k^2) + p11 * (p01 + (k^2 * 
+                                                                 p10))
+            var <- sum/(p11 + p01)^3
+            snbVarVec[j] <- sqrt(var/n)
+        }
+        snbVar.tmax <- snbVarVec
+        return(snbVar.tmax)
+    }
+    # --------------------------------------
+    
     t.vec <- seq(0, 1, 5e-04)
     sNB <- cbind(t.vec, NA)
     for (i in 1:length(t.vec)) {

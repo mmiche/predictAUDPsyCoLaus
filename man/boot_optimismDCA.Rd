@@ -4,23 +4,12 @@
 \alias{boot_optimismDCA}
 \title{Run bootstrap performance optimism estimation, applied to DCA.}
 \usage{
-boot_optimismDCA(
-  data,
-  outcome,
-  model_fun,
-  pred_fun,
-  B = 200,
-  thresholds = NULL
-)
+boot_optimismDCA(data, outcome, B = 200, thresholds = NULL)
 }
 \arguments{
 \item{data}{Dataset which provides the required columns (see \strong{Details}).}
 
 \item{outcome}{Character string. Name of the outcome variable, in this study it was 'newAud' (new onset of alcohol use disorder).}
-
-\item{model_fun}{See Argument \code{model_fun} in \code{pminternal::boot_optimism}.}
-
-\item{pred_fun}{See Argument \code{pred_fun} in \code{pminternal::boot_optimism}.}
 
 \item{B}{number of bootstrap resamples to run (we set B = 500).}
 

@@ -2,7 +2,7 @@
 #'
 #' This dummy dataset d has been simulated.
 #'
-#' @format A data.frame with 3629 rows and 9 columns:
+#' @format A data.frame with 3654 rows and 9 columns:
 #' \itemize{
 #'   \item newAud (binary outcome; 0 = no event observed, 1 = event observed).
 #'   \item ADAPU2 (binary predictor; 0, 1).
@@ -14,6 +14,7 @@
 #'   \item smokingstatus (categorical predictor; minimum 0, maximum 2).
 #'   \item Week_ALC_type6 (categorical predictor; minimum 1, maximum 6).
 #' }
+#' Note: The only two columns which have the same distribution as in the original data, are the outcome \code{newAud} (115 outcome cases) and the predictor smokingstatus (category 0 = 1787, category 1 = 1221, category 2 = 646).
 #'
 #' @docType data
 #' @keywords simulated dataset

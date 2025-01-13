@@ -6,11 +6,7 @@
 #
 #' @param data Dataset which provides the required columns (see \strong{Details}).
 #
-#' @param model_fun See Argument \code{model_fun} in \code{pminternal::boot_optimism}.
-#
 #' @param outcome Character string. Name of the outcome variable, in this study it was 'newAud' (new onset of alcohol use disorder).
-#
-#' @param pred_fun See Argument \code{pred_fun} in \code{pminternal::boot_optimism}.
 #
 #' @param thresholds Vector with numeric values. Selected range of reasonable threshold probabilities, we used: .01, .02, .03, .04, and .05.
 #
@@ -28,6 +24,7 @@
 #
 #' @importFrom parallel clusterExport makeCluster stopCluster
 #' @importFrom pbapply pbapply
+#' @importFrom stats binomial family glm predict
 #
 #' @examples
 #' # See the accompanying R script and this package's vignette,
@@ -43,13 +40,26 @@
 #
 # Remove these original function arguments (reason: not needed): score_fun, method.
 # Add new argument: thresholds
-boot_optimismDCA <- function (data, outcome, model_fun, pred_fun, B = 200, thresholds = NULL)
-{
+boot_optimismDCA <- function (data, outcome, B = 200, thresholds = NULL) {
     # dots <- list(...)
     # method <- match.arg(method)
     # if (missing(score_fun)) {
     #     score_fun <- pminternal::score_binary
     # }
+    
+    # --------------------------------------
+    # This is a minimally modified version of model_fun and of
+    # pred_fun, see Examples of function pminternal::boot_optimism.
+    # pminternal package version 0.0.1
+    model_fun <- function(data){
+        glm(newAud ~ ., data=data, family="binomial")
+    }
+    
+    pred_fun <- function(model, data){
+        predict(model, newdata=data, type="response")
+    }
+    # --------------------------------------
+    
     method <- "boot"
     fit <- model_fun(data = data)
     p_app <- pred_fun(model = fit, data = data)
@@ -76,12 +86,13 @@ boot_optimismDCA <- function (data, outcome, model_fun, pred_fun, B = 200, thres
     # }
     # else wt <- NULL
     wt <- NULL
-    if ("cores" %in% names(dots)) {
-        cores <- dots[["cores"]]
-    }
-    else {
-        cores <- 1
-    }
+    # if ("cores" %in% names(dots)) {
+    #     cores <- dots[["cores"]]
+    # }
+    # else {
+    #     cores <- 1
+    # }
+    cores <- 1
     cl <- parallel::makeCluster(cores)
     parallel::clusterExport(cl,
                             varlist =
