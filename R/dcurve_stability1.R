@@ -35,13 +35,8 @@ dcurve_stability1 <- function(x, thresholds) {
     stabil <- pminternal::get_stability(x)
     y <- stabil$y
     stabil <- stabil$stability
-    
     curves <- apply(stabil, 2, function(p) {
-        dc <- dca(inputDataset = data.frame(y=y, p=p),
-                          truth = "y", prob = "p", selectedThresholds = thresholds)
-        curve <- dc$plotTbl
-        curve$label <- as.character(curve$label)
-        curve[curve$label == "Prediction model",]
+        dca_fun(y=y, p=p, thresholds = thresholds)
     })
     return(curves)
 }
