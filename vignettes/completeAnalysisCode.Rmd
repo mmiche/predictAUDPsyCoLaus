@@ -32,7 +32,6 @@ devtools::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
 ## Load these R packages
 
 ```{r echo=TRUE, eval = FALSE}
-library(readr)
 library(dplyr)
 library(tidyr)
 library(ranger)
@@ -281,7 +280,7 @@ The results from the main analysis consist in clinical utility, calibration, and
 
 **Note**. All of the following results refer solely to the logistic regression model, because we did not use the random forest model as a competitor to logistic regression. Detailed reasons can be found in the publication and the other supplementary materials.
 
-There exists an alternative to k-fold cross-validation, which makes use of the full data. This bootstrapping alternative is described in Box 1 of Riley and Collins, 2023, and in Box 2 of Collins et al. (2024). The procedure is implemented in the R package pminternal (Rhodes, Version 0.0.1). The main advantage of this approach is that the user receives an estimate of the overoptimism of the apparent prediction performance ('apparent' performance are the results, after using the same dataset for training and for testing the prediction model).
+There exists an alternative to k-fold cross-validation, which makes use of the full data. This bootstrapping alternative is described in Box 1 of Riley and Collins (2023), and in Box 2 of Collins et al. (2024). The procedure is implemented in the R package pminternal (Rhodes, Version 0.0.1). The main advantage of this approach is that the user receives an estimate of the overoptimism of the apparent prediction performance ('apparent' performance are the results, after using the same dataset for training and for testing the prediction model).
 
 ```{r echo=TRUE, eval = FALSE}
 # Take the total dataset, then fit a logistic regression model to it.
@@ -403,6 +402,8 @@ In the subsequent sensitivity analyses, we used both, the original data and the 
 
 We evaluated model instability (Riley and Collins, 2023) for the original data, as well as for the mimicked data, and compared both visually. We used and modified the R package pminternal (Rhodes, Version 0.0.1) for this purpose.
 
+Since every published clinical prediction model is supposed to be applicable in clinical practice, if only in the unforeseeable future, model stability is a necessary prerequisite. This stability can and should be reported from different viewpoints, which is what Riley and Collins (2023) recommend.
+
 In order to visualize model instability, the output of the function validate (from the pminternal R package) is needed. For the original data, it has already been computed (see above, section 'Optimism corrected prediction performance'), variable name 'val'. If you want to, do the same for the mimicked dataset (see next code chunk)
 
 ```{r echo=TRUE, eval = FALSE}
@@ -430,10 +431,19 @@ The five visualizations of model instability are:
 
 ```{r echo=TRUE, eval = FALSE}
 # 1. Prediction stability
+# Displays the variability and range of individual-level predictions across the 500 bootstrap models. See Riley and Collins (2023), Figure 5, top row.
+
 # 2. Calibration stability
+# Displays the spread of the 500 bootstrap calibration curves. The wider the spread of these curves, the less stable is the model calibration. See Riley and Collins (2023), Figure 5, middle row.
+
 # 3. MAPE stability (MAPE = mean absolute prediction error)
+# Apart from the 500 bootstrap probability estimates for each study participant, there is his/her apparent predicted probability from the original model fit. The MAPE for each individual is the mean of the absolute difference between all 500 bootstrap predictions and the apparent prediction. This individual MAPE is displayed in the plot. It may indicate where instability concerns are greatest. See Riley and Collins (2023), Figure 5, bottom row.
+
 # 4. Decision curve stability
+# In a similar manner to the calibration stability plot, the decision curve stability plot displays stability via the spread of the decision curves across the 500 bootstrap samples. See Riley and Collins (2023), Figure 8, top row.
+
 # 5. Classification instability index (CII)
+# The CII plot displays, for a given threshold probability, how frequently individuals received the opposite classification than in the apparent prediction model. Ideally, the plot displays very low frequencies away from the selected threshold, whereas only very close to the threshold the frequencies are relatively high, because around that threshold, the risk of being classified differently, is highest. See Riley and Collins (2023), Figure 8, bottom row.
 ```
 
 The respective functions within the pminternal R package have been modified by us, because we wanted to visualize the results with ggplot2, instead of the R graphics package. All code examples of model instability use the variable 'val1'.
@@ -531,7 +541,7 @@ p <-
 ```{r echo=TRUE, eval = FALSE}
 # 4. Decision curve stability (select val1 or val2)
 thresholds <- seq(0, .05, by=.01)
-curves <- dcurve_stability1(x=val, thresholds = thresholds)
+curves <- dcurve_stability1(x=val1, thresholds = thresholds)
 # d must have 3654 rows for val1, or 4438 rows for val2.
 mod <- glm(newAud ~ ., family=binomial(link="logit"), data=d)
 # Prepare addition of treat none and treat all visualizations:
@@ -593,7 +603,7 @@ p1 <- p +
 ## Classification instability index
 ```{r echo=TRUE, eval = FALSE}
 # 5. Classification instability index (CII) (select val1 or val2)
-classifStabilityDf <- classification_stability1(x=val, threshold = .03)
+classifStabilityDf <- classification_stability1(x=val1, threshold = .03)
 p <- 
     ggplot(data=classifStabilityDf, aes(x=p_orig, y=cii)) +
     geom_point(colour="grey") +
@@ -614,7 +624,7 @@ p <-
 
 Mishra et al. (2022) developed the R package ClinicalUtilityRecal, which is based on work by Kerr et al. (2016). The main idea is that a clinical prediction model, under certain conditions, may benefit from recalibration. That is, the model-based clinical decision-making may be improved when using the recalibrated version of the model, compared to using the original (i.e., not recalibrated) version. The example in Mishra et al. (2022) is concerned with a subgroup of the population which is eligible for the prediction model.
 
-However, we used the ClinicalUtilityRecal R package for another purpose, namely for an alternative way to probe model instability. That is, in both, cross-validation and in bootstrapping, unspecific subgroups of the total sample are generated. The prediction model may be regarded as perfect, if it worked equally well for all these subgroups, which is of course utopian. However, using this utopian ideal, we may hypothesize that recalibration should not improve the clinical utility of the model in any of the generated subgroups. In other words, the model may be regarded as stable, for a given threshold probability, if the percentage of possible improvements is as close to zero as possible. We used the criterion of one standard error distance from the maximum standardized net benefit, as suggested by Mishra et al. (2022), to decide whether recalibration may have improved the model's clinical utility across all generated subgroups.
+However, we used the ClinicalUtilityRecal R package for another purpose, namely for an alternative way to probe model instability. That is, in both, cross-validation and in bootstrapping, unspecific subgroups of the total sample are generated. The prediction model may be regarded as perfect, if it worked equally well for all these subgroups, which is of course utopian. However, using this utopian ideal, we may hypothesize that recalibration should not improve the clinical utility of the model in any of the generated subgroups. In other words, the model may be regarded as stable, for a given threshold probability, if the percentage of possible improvements is as close to zero as possible. We used the criterion of one standard error distance from the maximum standardized net benefit, as suggested by Mishra et al. (2022), to decide whether recalibration may have improved the model's clinical utility across all generated subgroups. See Mishra et al. (2022), page 503, Figure 1, left plot: The blue dot represents the standard recalibration method, whereas the red dot represents the predicted probabilties from the original logistic regression model. The blue dot is closer to the maximum standardized net benefit AND the red dot is below the dashed horizontal line. This indicates recalibration potential for improved net benefit. If the red dot was also above the dashed line, we would conclude that no recalibration potential is present.
 
 The standardized net benefit (sNB) differs from the net benefit (NB), in that NB is divided by the outcome prevalence. That is why sNB always has the maximum value of 1 at the threshold probability of zero, whereas NB at that threshold is always equal to the outcome prevalence (in our study, almost 3.15 percent).
 
@@ -787,6 +797,69 @@ uci 0.2325372   0.2322735     0.2326451
 ```
 
 According to the detailed results, between 2 percent (5-fold CV, threshold probability 5 percent) and 14 percent (5-fold CV, threshold probability 5 percent) showed a recalibration improvement potential of the model's clinical utility, i.e., a relative minority across the 100 and 500 generated resamples. It is therefore not surprising to see in these summary results, that overall the standardized net benefit are almost identical, when comparing the original logistic regression model (column snbOrig), standard recalibration (sndStdRecal), and constrained recalibration (snbConstRecal). This is also the case with the bootstrap CV (not shown here).
+
+# Published clinical prediction model
+
+## Package documentation of our prediction model
+
+Our prediction model for the outcome new onset of alcohol use disorder is published as part of this predictAUDPsyCoLaus R package. When you installed and loaded this predictAUDPsyCoLaus R package, run the following code, to see the detailed documentation of the prediction model:
+```{r echo=TRUE, eval = FALSE}
+# Load the package
+library(predictAUDPsyCoLaus)
+# Call the help page for the prediction model
+?predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel
+```
+
+## Applying our prediction model to an independent dataset
+
+Our prediction model can be applied for external validation purposes, by running the 'predict' command in R. Note that we have removed all of the original data from the object that is produced by fitting the logistic regression model to the original data.
+```{r echo=TRUE, eval = FALSE}
+# External data with the same 8 predictors, which need to get the same variable names assigned to them, must be used as 'newdata' argument. The argument 'type', when set to 'response', will return the predicted probability of developing the outcome.
+predict(object=PsyCoLausAUDpredictionModel, newdata = ..., type="response")
+```
+
+## Prediction model fit to the original data
+
+This is the result of the fitted logistic regression model to the original data (*N* = 3654).
+```{r echo=TRUE, eval = FALSE}
+                  Estimate Std. Error     z value     Pr(>|z|)
+(Intercept)    -5.40036162 0.40769544 -13.2460682 4.754680e-40
+Sex            -0.20183875 0.19274980  -1.0471541 2.950285e-01
+iSES15          0.12344161 0.07415749   1.6645873 9.599512e-02
+MARIE          -0.29415846 0.18509473  -1.5892320 1.120080e-01
+MDDPD2          0.21399425 0.18825907   1.1367009 2.556633e-01
+ADAPU2         -0.11415732 0.27543898  -0.4144559 6.785402e-01
+Week_ALC_type6  0.72116051 0.06247314  11.5435296 7.959096e-31
+smokingstatus   0.59887445 0.11462058   5.2248422 1.743037e-07
+inactivity      0.07733002 0.18799546   0.4113398 6.808234e-01
+```
+
+## Probability distribution per outcome category
+
+This is the last among four measures and plots, which Van Calster et al. (2024) regard as being essential in reporting a clinical prediction model.
+
+```{r echo=TRUE, eval = FALSE}
+# Apparent = The full dataset is used for developing and for 'validating' the prediction model.
+pApparent <- glm(newAud ~ ., family = binomial(link="logit"), data=d)$fitted.values
+# probDistr: Probability distribution
+probDistr <- data.frame(newAud=as.factor(d$newAud), p_app=pApparent)
+# Display the probability distribution
+ggplot(data=probDistr, aes(x=newAud, y=p_app)) +
+    geom_violin() +
+    geom_jitter(height = 0, width = 0.1) +
+    xlab(label="New onset alcohol use disorder (DSM-5)") +
+    ylab(label="Apparent predicted probabilities") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.position = "none")
+```
+
+# Analysis code end
 
 **References**
 
