@@ -583,7 +583,7 @@ useLinetype <- c("solid", "solid", "dashed", "dotted")
 htbPlot <- function(x) paste0("1:", round((1-x)/x, digits=2))
 
 p1 <- p +
-    geom_line(data=curvesDf, aes(x=threshold, y=net_benefit, colour=Source, linetype=Source)) +
+    geom_line(data=curvesDf, aes(x=threshold, y=net_benefit, colour=Source, linetype=Source), linewidth=.75) +
     labs(colour=NULL) +
     labs(linetype=NULL) +
     scale_colour_manual(values = useColor) +
@@ -592,14 +592,14 @@ p1 <- p +
         sec.axis = dup_axis(name="Harm-to-benefit ratio", labels=htbPlot)) +
     xlab(label="Threshold probabilities") +
     ylab(label="Net benefit") +
-    coord_cartesian(xlim=c(0, .05), ylim=c(0,.0305)) +
+    coord_cartesian(xlim=c(0, .05), ylim=c(0,.0315)) +
     theme(
         panel.background = element_blank(),
         axis.text.x=element_text(size=16),
         axis.title.x=element_text(size=16),
         axis.text.y=element_text(size=16),
         axis.title.y = element_text(size=16),
-        panel.border = element_rect(color="grey", fill=NA),
+        panel.border = element_rect(color="black", fill=NA),
         legend.text = element_text(size=14),
         legend.position = "top",
         legend.title = element_blank())
