@@ -39,6 +39,18 @@
 #' }
 #'
 #' @examples
+#' # Display the prediction model's estimates in the R console:
+#' cbind(coefficients(predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel))
+#' # Output in R console:
+#' # (Intercept)    -5.40036162
+#' # Sex            -0.20183875
+#' # iSES15          0.12344161
+#' # MARIE          -0.29415846
+#' # MDDPD2          0.21399425
+#' # ADAPU2         -0.11415732
+#' # Week_ALC_type6  0.72116051
+#' # smokingstatus   0.59887445
+#' # inactivity      0.07733002
 #' # Take a random subset of the simulated dummy data d, which is included in
 #' # this package.
 #' d_subset <- d[c(5, 35, 599, 1697),]
