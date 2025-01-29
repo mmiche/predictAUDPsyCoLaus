@@ -464,7 +464,7 @@ p <-
     geom_line(data=stabilLs$lims[,c(1,3)], aes(x=p_app, y=X2.5.), linetype="dashed") +
     geom_line(data=stabilLs$lims[,c(2,3)], aes(x=p_app, y=X97.5.), linetype="dashed") +
     xlab(label="Estimated risk from development model") +
-    ylab(label="Estimated risk from bootstrap models (n = 500)") +
+    ylab(label="Estimated risk from 500 bootstrap models") +
     theme(
         panel.background = element_blank(),
         axis.text.x=element_text(size=16),
@@ -507,7 +507,7 @@ p1 <- p +
     labs(linetype=NULL) +
     scale_colour_manual(values = useColor) +
     scale_linetype_manual(values = useLinetype) +
-    xlab(label="Estimated risk") +
+    xlab(label="Estimated risk (original model/500 bootstrap models)") +
     ylab(label="Observed outcome rate") +
     theme(
         panel.background = element_blank(),
@@ -591,7 +591,7 @@ p1 <- p +
     scale_x_continuous(
         sec.axis = dup_axis(name="Harm-to-benefit ratio", labels=htbPlot)) +
     xlab(label="Threshold probabilities") +
-    ylab(label="Net benefit") +
+    ylab(label="Net benefit (original model/500 bootstrap models)") +
     coord_cartesian(xlim=c(0, .05), ylim=c(0,.0315)) +
     theme(
         panel.background = element_blank(),
@@ -812,6 +812,8 @@ Our prediction model for the outcome new onset of alcohol use disorder is publis
 library(predictAUDPsyCoLaus)
 # Call the help page for the prediction model
 ?predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel
+# Display the prediction model's estimates in the R console:
+cbind(coefficients(predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel))
 ```
 
 ## Applying our prediction model to an independent dataset
@@ -827,15 +829,15 @@ predict(object=PsyCoLausAUDpredictionModel, newdata = ..., type="response")
 This is the result of the fitted logistic regression model to the original data (*N* = 3654).
 ```{r echo=TRUE, eval = FALSE}
                   Estimate Std. Error     z value     Pr(>|z|)
-(Intercept)    -5.40036162 0.40769544 -13.2460682 4.754680e-40
-Sex            -0.20183875 0.19274980  -1.0471541 2.950285e-01
-iSES15          0.12344161 0.07415749   1.6645873 9.599512e-02
-MARIE          -0.29415846 0.18509473  -1.5892320 1.120080e-01
-MDDPD2          0.21399425 0.18825907   1.1367009 2.556633e-01
-ADAPU2         -0.11415732 0.27543898  -0.4144559 6.785402e-01
-Week_ALC_type6  0.72116051 0.06247314  11.5435296 7.959096e-31
-smokingstatus   0.59887445 0.11462058   5.2248422 1.743037e-07
-inactivity      0.07733002 0.18799546   0.4113398 6.808234e-01
+(Intercept)    -5.35428124 0.45327878 -11.8123358 3.370649e-32
+Sex            -0.20722125 0.21757247  -0.9524240 3.408820e-01
+iSES15          0.13956629 0.08237573   1.6942647 9.021500e-02
+MARIE          -0.32800250 0.20372011  -1.6100644 1.073838e-01
+MDDPD2          0.28228634 0.20861346   1.3531549 1.760061e-01
+ADAPU2         -0.04888268 0.29199210  -0.1674110 8.670467e-01
+Week_ALC_type6  0.64022013 0.07350741   8.7096002 3.049485e-18
+smokingstatus   0.60040634 0.12836060   4.6774972 2.903975e-06
+inactivity      0.10690985 0.20812437   0.5136825 6.074740e-01
 ```
 
 ## Probability distribution per outcome category
