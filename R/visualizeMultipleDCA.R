@@ -54,8 +54,8 @@ visualizeMultipleDCA <- function(dcaLs = NULL, dcaSelectType = NULL) {
             Mean=mean(nbModel),
             Min=min(nbModel),
             qu1=as.numeric(summary(nbModel)[2]),
-            lci=as.numeric(mysml::mnci(nbModel)$lci),
-            uci=as.numeric(mysml::mnci(nbModel)$uci),
+            lci=as.numeric(mysml::mnci(nbModel)[2]),
+            uci=as.numeric(mysml::mnci(nbModel)[3]),
             qu3=as.numeric(summary(nbModel)[5]),
             Max=max(nbModel)
         )
@@ -67,8 +67,8 @@ visualizeMultipleDCA <- function(dcaLs = NULL, dcaSelectType = NULL) {
             Mean=mean(nbModel),
             Min=min(nbModel),
             qu1=as.numeric(summary(nbModel)[2]),
-            lci=as.numeric(mysml::mnci(nbModel)$lci),
-            uci=as.numeric(mysml::mnci(nbModel)$uci),
+            lci=as.numeric(mysml::mnci(nbModel)[2]),
+            uci=as.numeric(mysml::mnci(nbModel)[3]),
             qu3=as.numeric(summary(nbModel)[5]),
             Max=max(nbModel)
         )
