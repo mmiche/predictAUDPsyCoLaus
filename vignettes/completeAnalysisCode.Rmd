@@ -1,0 +1,987 @@
+---
+title: "predictAUDPsyCoLaus vignette"
+author: "Marcel Miché"
+date: "2025-01-17"
+output:
+  html_document:
+    theme: yeti
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{predictAUDPsyCoLaus vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Complete analysis code
+
+This vignette accompanies the R package predictAUDPsyCoLaus, which serves as supplementary material to a publication. In that publication, we developed and evaluated a clinical prediction model of new onset alcohol use disorder among adults, from a representative general community sample, from Lausanne, Switzerland.
+
+## Dowload of this predictAUDPsyCoLaus R package
+
+This predictAUDPsyCoLaus R package can be downloaded from GitHub, e.g., by running these lines of code in R:
+```{r echo=TRUE, eval = FALSE}
+# Note: The R package devtools must have been installed, in order for this line of code to work:
+devtools::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
+                      dependencies = "Imports", build_vignettes = TRUE)
+```
+
+## Load these R packages
+
+```{r echo=TRUE, eval = FALSE}
+library(dplyr) # version 1.1.4 (Download from CRAN)
+library(magrittr) # version 2.0.3 (Download from CRAN)
+library(tidyr) # version 1.3.1 (Download from CRAN)
+library(ranger) # version 0.17.0 (Download from CRAN)
+# https://github.com/mmiche/mysml
+library(mysml) # version 0.1.0 (Download from GitHub)
+library(ggplot2) # version 3.5.1 (Download from CRAN)
+library(cowplot) # version 1.1.3 (Download from CRAN)
+library(gridExtra) # version 2.3 (Download from CRAN)
+library(pmcalibration) # version 0.1.0 (Download from CRAN)
+# https://github.com/stephenrho/pminternal
+library(pminternal) # version 0.0.1
+library(ClinicalUtilityRecal) # version 0.1.0 (Download from CRAN)
+library(rms) # version 6.8-1 (Download from CRAN)
+library(precrec) # version 0.14.2 (Download from CRAN)
+# https://github.com/mpavlou/samplesizedev
+library(samplesizedev) # version 1.0.0.0 (Download from GitHub)
+library(modgo) # version 1.0.1 (Download from CRAN)
+```
+
+## Dummy dataset d
+
+The original study data cannot be published, due to data privacy laws. The dummy dataset d is automatically loaded, once this predictAUDPsyCoLaus R package has been loaded. This dummy dataset contains the same column names as the original dataset, the same number of rows (*N* = 3654), and the same number of outcome cases (*N* = 115). However, there is not a single 100% match of this simulated data with any row of the original data. Nonetheless, superficially, both datasets lead to somewhat similar results. Of course, this is not the main aim. The main aim is the 100% transparency of our analysis code, which is the sole task of this R package 'predictAUDPsyCoLaus'. Code transparency belongs to one of the most urgently demanded improvements to research and reporting practices, e.g., Goldstein (2024), of publishing a clinical prediction model.
+
+# Analysis code start
+
+# Repeated k-fold cross-validation - Setup
+
+```{r echo=TRUE, eval = FALSE}
+# Note: Setting a seed guarantees perfect reproducibility of the computation procedure. This is especially important, when random processes (based on the computer) are involved.
+set.seed(1)
+# 5-fold CV = 5 80/20 splits; 20 seeds = 20 repetitions of 5 fold = 100 final test results.
+seeds <- sample(1:10e6, size=20)
+cvLs <- mysml::myRepeatedkFoldcv(data=d, outcome="newAud", folds = 5, stratify = TRUE, seeds=seeds)
+
+TrainLs <- cvLs$TrainLs
+TestLs <- cvLs$TestLs
+
+# Check stratification: Frequency of outcome (newAud) being closely around 3.15 percent, both in the training and in the test subsets of the total sample.
+unique(unlist(lapply(TrainLs, FUN=function(x) mean(x$newAud))))
+unique(unlist(lapply(TestLs, FUN=function(x) mean(x$newAud))))
+```
+
+## Repeated k-fold cross-validation - Run
+
+```{r echo=TRUE, eval = FALSE}
+# Make empty named list:
+predProbsLs <- sapply(c("logreg", "rf"),function(x) NULL) #
+preds <- c("Sex", "iSES15", "MARIE", "MDDPD2", "ADAPU2", "Week_ALC_type6", "smokingstatus", "inactivity")
+fmla <- formula(paste0("newAud ~ ", paste0(preds, collapse = "+")))
+fmla.f <- formula(paste0("factor(newAud) ~ ", paste0(preds, collapse = "+")))
+startTime <- Sys.time()
+for(m in 1:length(TrainLs)) {
+    # Select training and test subset
+    Train.m <- TrainLs[[m]]
+    Test.m <- TestLs[[m]]
+    
+    # Logistic regression
+    # -------------------
+    logreg_m <- applyLogreg(dataTrain=Train.m, dataTest=Test.m, frmla = fmla, outcome = "newAud")
+    predProbsLs[["logreg"]][[m]] <- logreg_m$TestCV
+    
+    # Random forest
+    # -------------
+    set.seed(1)
+    rndmFrst_m <- applyRandomForest(dataTrain=Train.m, dataTest=Test.m, frmla.f = fmla.f, outcome = "newAud")
+    predProbsLs[["rf"]][[m]] <- rndmFrst_m$TestCV
+}
+endTime <- Sys.time()
+difftime(endTime, startTime) # Approx. 40 seconds.
+```
+
+The resulting list predProbs contains the predicted probabilities and the observed outcome from all cross-validations, from both prediction models (logistic regression and random forest).
+
+The following for-loop calibrates the predicted probabilities of the random forest model. The reason for this is shown in the comment above the for-loop.
+
+```{r echo=TRUE, eval = FALSE}
+# Use standard recalibration of random forest pred. probs., before comparing logreg and rf. Reason: Niculescu-Mizil & Caruana (2005; https://doi.org/10.1145/1102351.1102430, page 5:
+# "If we add noise to the trees that bagging is averaging over, this noise will cause some [...]. We observe this effect most strongly with random forests [...]. Post-calibration seems to help mitigate this problem."
+for(i in 1:length(predProbsLs[["rf"]])) {
+    recalProbs <-
+        ClinicalUtilityRecal::stdRecal(y=predProbsLs[["rf"]][[i]]$observed,
+                                       p=predProbsLs[["rf"]][[i]]$predicted)
+    predProbsLs[["rf"]][[i]]$predicted <- recalProbs$p.std
+}
+```
+
+# Compute relevant results
+
+Relevant results of a clinical prediction model, which may one day be used for clinical decision making, are, first, clinical utility (decision curve analysis, net benefit), second, calibration, and third, discrimination, e.g., Van Calster et al. (2024).
+
+```{r echo=TRUE, eval = FALSE}
+relRes <- mysml::computeRelevantResults(
+    predictionOutputLs = predProbsLs,
+    dcaReasonableThresholds = c(.01, .02, .03, .04, .05))
+```
+
+The resulting list relRes (relevant results) contains the results, which are then used either for visualization, or for presenting the results in a table.
+
+## Decision curve analysis (DCA)
+
+Possibly the two most important rules in constructing a DCA (Vickers and Elkin, 2006), are: First, if there is no therapeutic option available for the outcome, do not produce a clinical prediction model. This would be superfluous and unethical. If there is at least one therapeutic option available for the outcome, consider all of its clinical costs, e.g., harmful side effects, and benefits, e.g., prevention or mitigation of the outcome. The weighing of theses clinical considerations is formalized in a DCA as the so-called harm-to-benefit ratio, which corresponds to the threshold probability. For example, a harm-to-benefit ratio of 1:99 means that 99 false positives may be therapeutically treated for each true positive. This corresponds to a threshold probability of 1 percent, due to taking the odds of 1 percent (odds = 1/(100-1) = 1/99 = 1:99). A treatment which poses low risk to the individual's health and which may also have low costs, in terms of time, money, or other clinical resources, may be administered to 99 false positives, for each true positive. If risk and/or costs increase, fewer false positives may receive the treatment, for each true positive, e.g., 9 false positives. A harm-to-benefit ratio of 1:9 corresponds to a threshold probability of 10 percent (odds = 10/(100-10) = 10/90 = 1/9).
+
+Note that a more intensive diagnostic procedure, instead of a therapeutic treatment, may also be the objective of the clinical decision, which the prediction model may be used for.
+
+It is recommended (e.g., Vickers et al., 2019) to select a reasonable range of threshold probabilities for the envisioned treatment, due to the fact that people differ regarding their estimation of health risks, i.e., whether to take action or whether to wait.
+
+```{r echo=TRUE, eval = FALSE}
+# Decision curve analysis (DCA)
+# dcaSelectType: One out of these three options: mnci, mnminmax, mnq1q3.
+# mnci: mean net benefit, with lower to upper 95 percent CI.
+# mnminmax: mean net benefit, with minimum to maximum value.
+# mnq1q3: mean net benefit, with 25th to 75th percentile.
+allDCALs <- visualizeMultipleDCA(dcaLs = relRes$dcaLs, dcaSelectType = "mnminmax")
+allDCALs$logregNB
+# Output in R console (based on the original data)
+  thrsh  Median    Mean      Min     qu1     qu3    Max
+  <dbl>   <dbl>   <dbl>    <dbl>   <dbl>   <dbl>  <dbl>
+1  0.01 0.0225  0.0223  0.0195   0.0216  0.0230  0.0239
+2  0.02 0.0171  0.0171  0.0104   0.0156  0.0189  0.0218
+3  0.03 0.0123  0.0122  0.00509  0.0103  0.0139  0.0196
+4  0.04 0.00866 0.00859 0.000684 0.00650 0.0101  0.0163
+5  0.05 0.00663 0.00677 0.000648 0.00456 0.00845 0.0140
+
+allDCALs$rfNB
+# Output in R console (based on the original data)
+  thrsh  Median    Mean      Min     qu1     qu3    Max
+  <dbl>   <dbl>   <dbl>    <dbl>   <dbl>   <dbl>  <dbl>
+1  0.01 0.0224  0.0225   0.0196  0.0218  0.0231  0.0255
+2  0.02 0.0165  0.0166   0.0115  0.0150  0.0182  0.0220
+3  0.03 0.0119  0.0119   0.00540 0.0102  0.0138  0.0180
+4  0.04 0.00812 0.00824  0.00114 0.00650 0.0103  0.0151
+5  0.05 0.00504 0.00503 -0.00144 0.00293 0.00671 0.0141
+```
+
+To visualize the decision curve analysis, either only for logistic regression, or for both prediction models (set argument 'bothModels' to TRUE):
+
+```{r echo=TRUE, eval = FALSE}
+# Plot the DCA
+dcaPlotLs <- plotDCA(allDCA = allDCALs$allDCA, bothModels = FALSE)
+# Display the plots (with or without intervals)
+dcaPlotLs$dcaPlot1 # without interval
+dcaPlotLs$dcaPlot2 # with selected interval: mnci, mnminmax, or mnq1q3.
+```
+
+## Calibration
+
+Next relevant result, after clinical utility, is calibration. The best way of presenting calibration is the so-called calibration plot.
+
+```{r echo=TRUE, eval = FALSE}
+calibLRLs <- mysml::makeCalibPlotLs(calibLs=relRes$orderedObsLs, model="logreg")
+calibRFLs <- mysml::makeCalibPlotLs(calibLs=relRes$orderedObsLs, model="rf")
+
+calibLR <- mysml::avrgCalibPlotLs(calibPlotLs = calibLRLs, model="logreg")
+calibRF <- mysml::avrgCalibPlotLs(calibPlotLs = calibRFLs, model="rf")
+
+calibLRPlot <- mysml::compressCalibPlot(mnSpanLs = calibLR, model = "logreg")
+calibRFPlot <- mysml::compressCalibPlot(mnSpanLs = calibRF, model = "rf")
+
+min(calibLRPlot[,-5])
+min(calibRFPlot[,-5])
+
+max(calibLRPlot[,-5])
+max(calibRFPlot[,-5])
+
+calibXYmax <- .2
+
+lrCalAllSeeds <- 
+    ggplot(calibLRPlot, aes(x=mn_x, y=mn_y)) +
+    geom_errorbar(width=.005, aes(ymin=lci_y, ymax=uci_y), linewidth=1, color="grey") +
+    geom_point(size=2) +
+    geom_abline(aes(slope=1, intercept=0, linetype="Perfect calibration"), colour = "black", linewidth=1) +
+    scale_linetype_manual(NULL, values=c("Perfect calibration"=2)) +
+    
+    geom_vline(xintercept=.01, linetype="dashed", linewidth=.5) +
+    geom_vline(xintercept=.05, linetype="dashed", linewidth=.5) +
+    
+    xlab(label="Predicted probability") +
+    ylab(label="Observed proportion") +
+    xlim(c(0,calibXYmax)) + ylim(c(min(calibLRPlot$lci_y),calibXYmax)) +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.text=element_text(size=16),
+        legend.position = "top")
+```
+
+Produce the same ggplot for random forest, if you want to. Additionally, if wanted, compute some calibration summary results. They are way less relevant, compared to clinical utility results, because they treat the whole breadth of predicted probabilities as if they are all equally important. However, this is most likely never the case in clinical reality, which is the reason why a 'reasonable range of threshold probabilities' must be selected as part of a decision curve analysis (see DCA description above).
+
+```{r echo=TRUE, eval = FALSE}
+# Calibration results
+calibResultsLs <- lapply(relRes$calibLs, FUN=function(x) {
+    mysml::myCalib(calibDf = x, outcome="observed")
+})
+calibPerfWLs <- list()
+for(i in 1:length(calibResultsLs)) {
+    calibPerfWLs[[i]] <- calibResultsLs[[i]]$calibPerfW
+}
+calibDf <- dplyr::bind_rows(calibPerfWLs)
+rownames(calibDf) <- 1:nrow(calibDf)
+calibDf$model <- factor(rep(c("logreg", "randomForest"), levels=c("logreg", "randomForest")))
+
+# ICI (integrated calibration index)
+# ----------
+summary(calibDf$ici[calibDf$model=="logreg"])
+summary(calibDf$ici[calibDf$model=="randomForest"])
+
+# Make boxplots.
+calibBoxPlot <- 
+    ggplot(data=calibDf, aes(x=model, y=ici)) +
+    geom_boxplot() +
+    theme(panel.background = element_blank(),
+          axis.text.x=element_text(size=16),
+          axis.title.x=element_text(size=16),
+          axis.text.y=element_text(size=16),
+          axis.title.y = element_text(size=16),
+          panel.border = element_rect(color="black", fill=NA))
+```
+
+## Discrimination
+
+Least important, from the clinically practical point of view, is discrimination, e.g., Janssens and Martens (2020).
+
+```{r echo=TRUE, eval = FALSE}
+# Discrimination
+logreg_rocauc <- unlist(lapply(predProbsLs[["logreg"]], FUN=function(x) {
+    precrec::auc(precrec::evalmod(scores=x[,"predicted"], labels=x[,"observed"]))$aucs[1]
+}))
+summary(logreg_rocauc)
+# Output in R console (based on the original data)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.6467  0.7307  0.7574  0.7602  0.7866  0.8577
+ 
+rf_rocauc <- unlist(lapply(predProbsLs[["rf"]], FUN=function(x) {
+    precrec::auc(precrec::evalmod(scores=x[,"predicted"], labels=x[,"observed"]))$aucs[1]
+}))
+summary(rf_rocauc)
+# Output in R console (based on the original data)
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.6256  0.7075  0.7382  0.7361  0.7607  0.8387
+```
+
+The results from the main analysis consist in clinical utility, calibration, and discrimination, which is based on 20 repetitions of 5-fold cross-validation, which yielded 5*20 = 100 model performance results.
+
+# Optimism corrected prediction performance
+
+**Note**. All of the following results refer solely to the logistic regression model, because we did not use the random forest model as a competitor to logistic regression. Detailed reasons can be found in the publication and the other supplementary materials.
+
+There exists an alternative to k-fold cross-validation, which makes use of the full data. This bootstrapping alternative is described in Box 1 of Riley and Collins (2023), and in Box 2 of Collins et al. (2024). The procedure is implemented in the R package pminternal (Rhodes, Version 0.0.1). The main advantage of this approach is that the user receives an estimate of the overoptimism of the apparent prediction performance ('apparent' performance are the results, after using the same dataset for training and for testing the prediction model).
+
+```{r echo=TRUE, eval = FALSE}
+# Take the total dataset, then fit a logistic regression model to it.
+mod <- glm(newAud ~ ., family = binomial(link="logit"), data = d)
+# Next, run the function validate from the pminternal R package.
+start <- Sys.time()
+set.seed(1)
+# Set the recommended 500 bootstrap repetitions.
+val <- pminternal::validate(fit = mod, method = "boot_optimism", B = 500)
+end <- Sys.time()
+difftime(end, start) # Between 2 and 3 Min.
+val
+# Output in R console (based on the original data)
+             C    Brier Intercept Slope   Eavg    E50    E90  Emax    ECI
+Apparent  0.78  0.02887      0.00 1.000 0.0064 0.0042 0.0138 0.077 0.0112
+Optimism  0.02 -0.00062      0.17 0.061 0.0018 0.0011 0.0059 0.049 0.0093
+Corrected 0.76  0.02949     -0.17 0.939 0.0046 0.0031 0.0079 0.028 0.0019
+```
+
+The results show C, which is a measure of discrimination, whereas the remaining measures all belong the the class of calibration measures. Since our main interest is the net benefit, we modified the function 'boot_optimism' of the package pminternal. The modified function 'boot_optimismDCA' is part of this predictAUDPsyCoLaus R package.
+
+```{r echo=TRUE, eval = FALSE}
+# Newly developed, on the basis of the boot_optimism function of the pminternal R package: Compute optimism corrected net benefit results.
+# Takes approx. 30 seconds.
+set.seed(1)
+dcaCorrected <- boot_optimismDCA(data=d, outcome = "newAud", B=500, thresholds = seq(.01, .05, by=.01))
+round(dcaCorrected, digits=4)
+# Output in R console (based on the original data)
+          pt0.01 pt0.02 pt0.03 pt0.04 pt0.05
+Apparent  0.0225 0.0187 0.0135 0.0103 0.0082
+Optimism  0.0000 0.0007 0.0012 0.0013 0.0013
+Corrected 0.0225 0.0180 0.0123 0.0090 0.0068
+```
+
+# Sensitivity analyses
+
+## Compute required sample size
+
+We used the R package samplesizedev, provided by Pavlou et al. (2024).
+
+```{r echo=TRUE, eval = FALSE}
+# Compute required sample size N
+#
+samplesizedev::samplesizedev(outcome="Binary", S = 0.9, phi = 0.0315, c = 0.7, p= 8, nsim=100)
+#
+# Output in R console:
+# $rvs
+# [1] 4207
+# 
+# $sim
+# [1] 3550
+# --------
+# Select 3550 as required N, for the development of the model. Since we employed 5-fold cross-validation, we use 80 percent of the total sample for developing the model. If 3550 represent 80 percent, an N of 4438 represented 100 percent (total sample size).
+```
+
+Next, after knowing that we ought to have a total sample size of 4438, instead of 3654, we employed the modgo R package, which simulates study data in a mimicking way (Koliopanos et al., 2023). Setting the function argument 'nrep' (repetitions) to 500, the simulated data contained 1'827'000 rows of data (500 * 3654).
+
+```{r echo=TRUE, eval = FALSE}
+# Binary variables of the dataset
+binary_vars <- c("newAud", "ADAPU2", "inactivity", "MDDPD2", "Sex", "MARIE")
+# Number of repetitions of the mimicking simulations.
+modgoReps <- 500
+# Run the mimicking simulations.
+rawDataSim <- modgo::modgo(data=d, bin_variables = binary_vars, categ_variables = NULL, nrep=modgoReps, seed=1)
+# Bind all rows together.
+dSim <- dplyr::bind_rows(rawDataSim$simulated_data)
+# From dSim, draw the required sample size of N = 4438
+# 100% = 4438
+4438*.0315 # 140
+4438*(1-.0315) # 4298
+```
+
+From that simulated data, we randomly sampled a dataset of size 4438. We repeated this random sampling 5000 times, after which we selected the random sample, whose regression weights (model estimates) of the logistic regression model were as close as possible to the regression weights of the original data.
+
+```{r echo=TRUE, eval = FALSE}
+# d <- readRDS(file="PsyCoLaus3654.rds") # Original data
+# pwts: prediction weights
+pwts <- coefficients(glm(newAud ~ ., family = binomial(link="logit"), data=d))
+idxWithOutcome <- which(dSim$newAud == 1)
+idxWithoutOutcome <- which(dSim$newAud == 0)
+set.seed(9)
+seeds <- sample(1:1e+08, size=5000)
+# wtsDiff: difference between the prediction weights
+wtsDiff <- c()
+start <- Sys.time()
+for(i in seeds) {
+    set.seed(i)
+    idxSelect.y1 <- sample(idxWithOutcome, size=140)
+    set.seed(i)
+    idxSelect.y0 <- sample(idxWithoutOutcome, size=4298)
+    d_i <- dSim[c(idxSelect.y1, idxSelect.y0),]
+    mod_i <- glm(newAud ~ ., family = binomial(link="logit"), data=d_i)
+    # Prediction weights
+    pwts_i <- coefficients(mod_i)
+    wtsDiff <- c(wtsDiff, sum(abs(pwts_i - pwts)))
+}
+end <- Sys.time()
+difftime(end, start) # Between 2 and 3 Min.
+which(wtsDiff == min(wtsDiff)) # Index number between 1 and 5000.
+# BEWARE: Insert the index number (between 1 and 5000) in the squared brackets.
+# For example, if the index number was 4202, set:
+set.seed(seeds[4202])
+# Sample 3.15% from those with the outcome.
+idxSelect.y1 <- sample(idxWithOutcome, size=140)
+# Again, set index number:
+set.seed(seeds[4202])
+# Sample 96.85% from those without the outcome.
+idxSelect.y0 <- sample(idxWithoutOutcome, size=4298)
+# Finally, draw the selected rows of data.
+d4438 <- dSim[c(idxSelect.y1, idxSelect.y0),]
+
+# saveRDS(object=d_i, file = "PsyCoLausMimic4438.rds")
+# d4438 <- readRDS(file="PsyCoLausMimic4438.rds")
+```
+
+In the subsequent sensitivity analyses, we used both, the original data and the mimicked simulation data.
+
+# Model instability
+
+We evaluated model instability (Riley and Collins, 2023) for the original data, as well as for the mimicked data, and compared both visually. We used and modified the R package pminternal (Rhodes, Version 0.0.1) for this purpose.
+
+Since every published clinical prediction model is supposed to be applicable in clinical practice, if only in the unforeseeable future, model stability is a necessary prerequisite. This stability can and should be reported from different viewpoints, which is what Riley and Collins (2023) recommend.
+
+In order to visualize model instability, the output of the function validate (from the pminternal R package) is needed. For the original data, it has already been computed (see above, section 'Optimism corrected prediction performance'), variable name 'val'. If you want to, do the same for the mimicked dataset (see next code chunk)
+
+```{r echo=TRUE, eval = FALSE}
+# Take the total mimicked dataset (d4438), then fit a logistic regression model to it.
+mod4438 <- glm(newAud ~ ., family = binomial(link="logit"), data = d4438)
+# Next, run the function validate from the pminternal R package.
+start <- Sys.time()
+set.seed(1)
+# Set the recommended 500 bootstrap repetitions.
+val2 <- pminternal::validate(fit = mod4438, method = "boot_optimism", B = 500)
+end <- Sys.time()
+difftime(end, start) # Between 2 and 3 Min.
+```
+
+We saved the results as val1 (original data), and val2 (mimicked data), with which we then continued to visualize the results.
+
+```{r echo=TRUE, eval = FALSE}
+# saveRDS(object=val, file="val20250110_3654.rds")
+val1 <- readRDS(file="val20250110_3654.rds")
+# saveRDS(object=val, file="val20250114_4438.rds")
+val2 <- readRDS(file="val20250114_4438.rds")
+```
+
+The five visualizations of model instability are:
+
+```{r echo=TRUE, eval = FALSE}
+# 1. Prediction stability
+# Displays the variability and range of individual-level predictions across the 500 bootstrap models. See Riley and Collins (2023), Figure 5, top row.
+
+# 2. Calibration stability
+# Displays the spread of the 500 bootstrap calibration curves. The wider the spread of these curves, the less stable is the model calibration. See Riley and Collins (2023), Figure 5, middle row.
+
+# 3. MAPE stability (MAPE = mean absolute prediction error)
+# Apart from the 500 bootstrap probability estimates for each study participant, there is his/her apparent predicted probability from the original model fit. The MAPE for each individual is the mean of the absolute difference between all 500 bootstrap predictions and the apparent prediction. This individual MAPE is displayed in the plot. It may indicate where instability concerns are greatest. See Riley and Collins (2023), Figure 5, bottom row.
+
+# 4. Decision curve stability
+# In a similar manner to the calibration stability plot, the decision curve stability plot displays stability via the spread of the decision curves across the 500 bootstrap samples. See Riley and Collins (2023), Figure 8, top row.
+
+# 5. Classification instability index (CII)
+# The CII plot displays, for a given threshold probability, how frequently individuals received the opposite classification than in the apparent prediction model. Ideally, the plot displays very low frequencies away from the selected threshold, whereas only very close to the threshold the frequencies are relatively high, because around that threshold, the risk of being classified differently, is highest. See Riley and Collins (2023), Figure 8, bottom row.
+```
+
+The respective functions within the pminternal R package have been modified by us, because we wanted to visualize the results with ggplot2, instead of the R graphics package. All code examples of model instability use the variable 'val1'.
+
+## Prediction stability
+```{r echo=TRUE, eval = FALSE}
+# 1. Prediction stability (select val1 or val2)
+stabilLs <- prediction_stability1(x=val1, smooth_bounds = TRUE)
+stabilDf <- data.frame(p_app=rep(stabilLs$stabilDf[,"p_app"], times=stabilLs$b),
+                       p_boot=unlist(stabilLs$stabilDf[,-1]))
+p <- 
+    ggplot(data=stabilDf, aes(x=p_app, y=p_boot)) +
+    geom_point(col="grey") +
+    geom_line(data=stabilLs$lims[,c(1,3)], aes(x=p_app, y=X2.5.), linetype="dashed") +
+    geom_line(data=stabilLs$lims[,c(2,3)], aes(x=p_app, y=X97.5.), linetype="dashed") +
+    xlab(label="Estimated risk from development model") +
+    ylab(label="Estimated risk from 500 bootstrap models") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.position = "none")
+```
+## Calibration stability
+```{r echo=TRUE, eval = FALSE}
+# 2. Calibration stability  (select val1 or val2)
+curves <- calibration_stability1(x=val1)
+for(i in length(curves):1) {
+    if(i == length(curves)) {
+        p <- ggplot(data=curves[[i]], aes(x=p, y=pc)) +
+            geom_line(linetype="solid", colour="grey", linewidth=.2)
+        
+    } else if(i < length(curves) & i > 2) {
+        p <- p +
+            geom_line(data=curves[[i]], linetype="solid", colour="grey", linewidth=.2)
+    }
+}
+
+curvesDf <- dplyr::bind_rows(list(curves[[2]],
+                                  curves[[1]],
+                                  data.frame(p=seq(0,1,length.out=100),
+                                             pc=seq(0, 1, length.out=100)))
+)
+
+curvesDf$Source <- rep(c("Bootstrap", "Original", "Perfect calibration"), each=100)
+curvesDf$Source <- factor(curvesDf$Source, levels=c("Bootstrap", "Original", "Perfect calibration"))
+
+useColor <- c("Bootstrap" = "grey", "Original" = "black", "Perfect calibration" = "black")
+useLinetype <- c("solid", "solid", "dashed")
+
+p1 <- p +
+    geom_line(data=curvesDf, aes(x=p, y=pc, colour=Source, linetype=Source)) +
+    labs(colour=NULL) +
+    labs(linetype=NULL) +
+    scale_colour_manual(values = useColor) +
+    scale_linetype_manual(values = useLinetype) +
+    xlab(label="Estimated risk (original model/500 bootstrap models)") +
+    ylab(label="Observed outcome rate") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.text = element_text(size=14),
+        legend.position = "top",
+        legend.title = element_blank())
+```
+## MAPE stability
+```{r echo=TRUE, eval = FALSE}
+# 3. MAPE stability (MAPE = mean absolute prediction error)
+# (select val1 or val2)
+stabilLs <- mape_stability1(x=val1)
+stabilLs$out$average_mape # val1 = 0.006800643
+
+p <- 
+    ggplot(data=stabilLs$mapeDf, aes(x=p_app, y=individual_mape)) +
+    geom_point(col="grey") +
+    xlab(label="Estimated risk from development model") +
+    ylab(label="Mean absolute prediction error (MAPE)") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.position = "none")
+```
+## Decision curve stability
+```{r echo=TRUE, eval = FALSE}
+# 4. Decision curve stability (select val1 or val2)
+thresholds <- seq(0, .05, by=.01)
+curves <- dcurve_stability1(x=val1, thresholds = thresholds)
+# d must have 3654 rows for val1, or 4438 rows for val2.
+mod <- glm(newAud ~ ., family=binomial(link="logit"), data=d)
+# Prepare addition of treat none and treat all visualizations:
+curveOrigLs <- mysml:::dca(inputDataset = data.frame(y=d$newAud, p=mod$fitted.values),
+                           truth = "y", prob = "p", selectedThresholds = thresholds)
+curveOrigLs$plotTbl$label <- as.character(curveOrigLs$plotTbl$label)
+dcurveOrigTreatAll <- curveOrigLs$plotTbl[curveOrigLs$plotTbl$label=="Treat all",]
+dcurveOrigTreatNone <- curveOrigLs$plotTbl[curveOrigLs$plotTbl$label=="Treat none",]
+
+for(i in length(curves):1) {
+    if(i == length(curves)) {
+        p <- ggplot(data=curves[[i]], aes(x=threshold, y=net_benefit)) +
+            geom_line(linetype="solid", colour="grey", linewidth=.2)
+        
+    } else if(i < length(curves) & i > 2) {
+        p <- p +
+            geom_line(data=curves[[i]], linetype="solid", colour="grey", linewidth=.2)
+    }
+}
+
+curvesDf <- dplyr::bind_rows(list(curves[[2]],
+                                  curves[[1]],
+                                  dcurveOrigTreatAll,
+                                  dcurveOrigTreatNone))
+
+curvesDf$Source <- c(rep("Bootstrap", times=length(thresholds)),
+                     rep("Original", times=length(thresholds)),
+                     rep("Treat all", times=length(thresholds)),
+                     rep("Treat none", times=length(thresholds)))
+
+curvesDf$Source <- factor(curvesDf$Source, levels=c("Bootstrap", "Original", "Treat all", "Treat none"))
+
+useColor <- c("Bootstrap" = "grey", "Original" = "black", "Treat all" = "black", "Treat none" = "black")
+useLinetype <- c("solid", "solid", "dashed", "dotted")
+htbPlot <- function(x) paste0("1:", round((1-x)/x, digits=2))
+
+p1 <- p +
+    geom_line(data=curvesDf, aes(x=threshold, y=net_benefit, colour=Source, linetype=Source), linewidth=.75) +
+    labs(colour=NULL) +
+    labs(linetype=NULL) +
+    scale_colour_manual(values = useColor) +
+    scale_linetype_manual(values = useLinetype) +
+    scale_x_continuous(
+        sec.axis = dup_axis(name="Harm-to-benefit ratio", labels=htbPlot)) +
+    xlab(label="Threshold probabilities") +
+    ylab(label="Net benefit (original model/500 bootstrap models)") +
+    coord_cartesian(xlim=c(0, .05), ylim=c(0,.0315)) +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="black", fill=NA),
+        legend.text = element_text(size=14),
+        legend.position = "top",
+        legend.title = element_blank())
+```
+## Classification instability index
+```{r echo=TRUE, eval = FALSE}
+# 5. Classification instability index (CII) (select val1 or val2)
+classifStabilityDf <- classification_stability1(x=val1, threshold = .03)
+p <- 
+    ggplot(data=classifStabilityDf, aes(x=p_orig, y=cii)) +
+    geom_point(colour="grey") +
+    geom_vline(xintercept=.03, linetype="dashed") +
+    xlab(label="Estimated risk from development model") +
+    ylab(label="Classification instability index (CII)") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.position = "none")
+```
+
+# Recalibration: Potential for improved net benefit?
+
+Mishra et al. (2022) developed the R package ClinicalUtilityRecal, which is based on work by Kerr et al. (2016). The main idea is that a clinical prediction model, under certain conditions, may benefit from recalibration. That is, the model-based clinical decision-making may be improved when using the recalibrated version of the model, compared to using the original (i.e., not recalibrated) version. The example in Mishra et al. (2022) is concerned with a subgroup of the population which is eligible for the prediction model.
+
+However, we used the ClinicalUtilityRecal R package for another purpose, namely for an alternative way to probe model instability. That is, in both, cross-validation and in bootstrapping, unspecific subgroups of the total sample are generated. The prediction model may be regarded as perfect, if it worked equally well for all these subgroups, which is of course utopian. However, using this utopian ideal, we may hypothesize that recalibration should not improve the clinical utility of the model in any of the generated subgroups. In other words, the model may be regarded as stable, for a given threshold probability, if the percentage of possible improvements is as close to zero as possible. We used the criterion of one standard error distance from the maximum standardized net benefit, as suggested by Mishra et al. (2022), to decide whether recalibration may have improved the model's clinical utility across all generated subgroups. See Mishra et al. (2022), page 503, Figure 1, left plot: The blue dot represents the standard recalibration method, whereas the red dot represents the predicted probabilties from the original logistic regression model. The blue dot is closer to the maximum standardized net benefit AND the red dot is below the dashed horizontal line. This indicates recalibration potential for improved net benefit. If the red dot was also above the dashed line, we would conclude that no recalibration potential is present.
+
+The standardized net benefit (sNB) differs from the net benefit (NB), in that NB is divided by the outcome prevalence. That is why sNB always has the maximum value of 1 at the threshold probability of zero, whereas NB at that threshold is always equal to the outcome prevalence (in our study, almost 3.15 percent).
+
+Note that for our purpose, we modified the function snbRecalPlot from the R package ClinicalUtilityRecal. We named the modified function snbRecalPlotNum. It is part of this R package predictAUDPsyCoLaus.
+
+We ran this last part of our sensitivity analyses four times. Two times for the cross-validation (using the original data and then the mimicked simulation data) and two times for the bootstrapping procedure (again, using the original data, followed by the mimicked data).
+
+### Repeated 5-fold CV
+
+```{r echo=TRUE, eval = FALSE}
+# 100 cross-validated results
+# ---------------------------
+# Source: 5-fold CV, 20 repetitions = 100 performance results.
+# The original model's predicted probabilities.
+# predProbsLs (either from N = 3654 or from N = 4438)
+
+collectLs <- list()
+# r <- .01
+for(r in seq(.01, .05, by=.01)) {
+    recalLRCheckLs <- list()
+
+    for(b in 1:length(predProbsLs[["logreg"]])) {
+        
+        recalLRCheckLs[[b]] <- snbVals(
+            y=predProbsLs[["logreg"]][[b]]$observed,
+            p=predProbsLs[["logreg"]][[b]]$predicted,
+            r=r)
+    }
+    recalLRCheckDf <- dplyr::bind_rows(recalLRCheckLs)
+    recalLRCheckDf$rsmp <- 1:nrow(recalLRCheckDf)
+    collectLs[[paste0("r", r)]] <- recalLRCheckDf
+}
+```
+
+We saved the collectLs (collected results in a list object) as rds file, before we continued.
+
+### Bootstrap CV
+
+In order to use this alternative approach, we modified the function boot_optimism of the R package pminternal. We named the modified function boot_optimism1. It is part of this R package predictAUDPsyCoLaus.
+
+```{r echo=TRUE, eval = FALSE}
+set.seed(1)
+bootDf <- boot_optimism1(data=d, outcome = "newAud", B=500)
+dim(bootDf)
+colnames(bootDf) <- c(paste0("p_orig00", 1:9), paste0("p_orig0", 10:99), paste0("p_orig", 100:500))
+bootDf$y <- d$newAud
+```
+
+```{r echo=TRUE, eval = FALSE}
+start <- Sys.time()
+collectLs <- list()
+for(r in seq(.01, .05, by=.01)) {
+    recalLRCheckLs <- list()
+    for(b in 1:500) {
+
+        recalLRCheckLs[[b]] <- snbVals(
+            y=bootDf$y,
+            p=bootDf[,b],
+            r=r)
+    }
+    recalLRCheckDf <- dplyr::bind_rows(recalLRCheckLs)
+    recalLRCheckDf$rsmp <- 1:nrow(recalLRCheckDf)
+    collectLs[[paste0("r", r)]] <- recalLRCheckDf
+}
+end <- Sys.time()
+difftime(end, start) # Approx. 30 Mins.
+```
+
+We saved the collectLs (collected results in a list object) as rds file, before we continued.
+
+## Recalibration stability
+
+Reflecting the above terminology of investigating model instability, e.g., prediction stability, we named this last part of our sensitivity analyses 'recalibration stability'. For each of the four outputs (collectLs), the results can be extracted like this:
+
+```{r echo=TRUE, eval = FALSE}
+recalStability <- lapply(X=collectLs, FUN = function(x) {
+        xTmp <- recalPotential(x)
+        list(tbl=table(xTmp), ptbl=prop.table(table(xTmp)))
+    })
+dplyr::bind_rows(recalStability)
+```
+
+The extracted results from the 5-fold CV, based on the original dataset, are:
+
+```{r echo=TRUE, eval = FALSE}
+   tbl         ptbl       
+   <table[1d]> <table[1d]>
+ 1 86          0.86       
+ 2 14          0.14       
+ 3 87          0.87       
+ 4 13          0.13       
+ 5 92          0.92       
+ 6  8          0.08       
+ 7 89          0.89       
+ 8 11          0.11       
+ 9 98          0.98       
+10  2          0.02
+```
+
+Since we selected five threshold probabilities (1, 2, ..., 5 percent), we see 10 rows of results. For the first threshold probability of 1 percent, 86 out of 100 results showed no recalibration improvement of clinical utility, whereas the remaining 14 results showed such an improvement potential. The column 'tbl' shows the absolute numbers, the column 'ptbl' shows the percentages.
+
+The extracted results from the bootstrap CV, based on the original dataset, are:
+
+```{r echo=TRUE, eval = FALSE}
+   tbl         ptbl       
+   <table[1d]> <table[1d]>
+ 1 467         0.934      
+ 2  33         0.066      
+ 3 451         0.902      
+ 4  49         0.098      
+ 5 440         0.880      
+ 6  60         0.120      
+ 7 440         0.880      
+ 8  60         0.120      
+ 9 457         0.914      
+10  43         0.086
+```
+
+In the bootstrap CV, for the threshold probability of 1 percent, 6.6 percent (33 out of the 500 generated subgroups) showed an improvement potential of clinical utility, compared to 14 percent showing such an improvement potential of clinical utility in the 5-fold CV, at the 1 percent threshold probability.
+
+If the reader wants to, s/he can also visualize the results, for any of the five threshold probabilities, e.g., 3 percent. The function snbRsmpPlot is part of this predictAUDPsyCoLaus R package.
+
+```{r echo=TRUE, eval = FALSE}
+# Visualize
+select <- 3 # Threshold probabilities: 1 = .01, 2 = .02, 3 = .03, 4 = .04, 5 = .05.
+data.r <- collectLs[[select]]
+# snb = standardized net benefit, Rsmp = resample.
+snbRecal100 <- snbRsmpPlot(data=data.r)
+```
+
+In the form of a table, the summarized results can be extracted like this:
+
+```{r echo=TRUE, eval = FALSE}
+# Summarize (mean snb and 95% lower and upper CI bound)
+lapply(collectLs, function(x) {
+    apply(X=x[,2:4], 2, mysml::mnci)
+})
+# Output in R console (based on the original data; 5-fold CV).
+# mn = mean snb, lci = lower 95 percent CI, uci = upper 95 percent CI.
+# Threshold probabilities: .01, .02, .03, .04, and .05.
+$r0.01
+      snbOrig snbStdRecal snbConstRecal
+mn  0.7070356   0.7062934     0.7073693
+lci 0.7006560   0.6994601     0.7006415
+uci 0.7134151   0.7131266     0.7140972
+
+$r0.02
+      snbOrig snbStdRecal snbConstRecal
+mn  0.5447382   0.5459095     0.5459627
+lci 0.5295247   0.5322881     0.5320213
+uci 0.5599518   0.5595309     0.5599042
+
+$r0.03
+      snbOrig snbStdRecal snbConstRecal
+mn  0.3869789   0.3894218     0.3873196
+lci 0.3697331   0.3733852     0.3715136
+uci 0.4042247   0.4054584     0.4031256
+
+$r0.04
+      snbOrig snbStdRecal snbConstRecal
+mn  0.2728261   0.2762681     0.2775543
+lci 0.2543281   0.2586788     0.2598761
+uci 0.2913240   0.2938574     0.2952325
+
+$r0.05
+      snbOrig snbStdRecal snbConstRecal
+mn  0.2151259   0.2137757     0.2141190
+lci 0.1977145   0.1952780     0.1955928
+uci 0.2325372   0.2322735     0.2326451
+```
+
+According to the detailed results, between 2 percent (5-fold CV, threshold probability 5 percent) and 14 percent (5-fold CV, threshold probability 5 percent) showed a recalibration improvement potential of the model's clinical utility, i.e., a relative minority across the 100 and 500 generated resamples. It is therefore not surprising to see in these summary results, that overall the standardized net benefit are almost identical, when comparing the original logistic regression model (column snbOrig), standard recalibration (sndStdRecal), and constrained recalibration (snbConstRecal). This is also the case with the bootstrap CV (not shown here).
+
+# Published clinical prediction model
+
+## Package documentation of our prediction model
+
+Our prediction model for the outcome new onset of alcohol use disorder is published as part of this predictAUDPsyCoLaus R package. When you installed and loaded this predictAUDPsyCoLaus R package, run the following code, to see the detailed documentation of the prediction model:
+```{r echo=TRUE, eval = FALSE}
+# Load the package
+library(predictAUDPsyCoLaus)
+# Call the help page for the prediction model
+?predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel
+# Display the prediction model's estimates in the R console:
+cbind(coefficients(predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel))
+```
+
+## Applying our prediction model to an independent dataset
+
+Our prediction model can be applied for external validation purposes, by running the 'predict' command in R. Note that we have removed all of the original data from the object that is produced by fitting the logistic regression model to the original data.
+```{r echo=TRUE, eval = FALSE}
+# External data with the same 8 predictors, which need to get the same variable names assigned to them, must be used as 'newdata' argument. The argument 'type', when set to 'response', will return the predicted probability of developing the outcome.
+predict(object=PsyCoLausAUDpredictionModel, newdata = ..., type="response")
+```
+
+## Prediction model fit to the original data
+
+This is the result of the fitted logistic regression model to the original data (*N* = 3654).
+```{r echo=TRUE, eval = FALSE}
+                  Estimate Std. Error     z value     Pr(>|z|)
+(Intercept)    -5.35428124 0.45327878 -11.8123358 3.370649e-32
+Sex            -0.20722125 0.21757247  -0.9524240 3.408820e-01
+iSES15          0.13956629 0.08237573   1.6942647 9.021500e-02
+MARIE          -0.32800250 0.20372011  -1.6100644 1.073838e-01
+MDDPD2          0.28228634 0.20861346   1.3531549 1.760061e-01
+ADAPU2         -0.04888268 0.29199210  -0.1674110 8.670467e-01
+Week_ALC_type6  0.64022013 0.07350741   8.7096002 3.049485e-18
+smokingstatus   0.60040634 0.12836060   4.6774972 2.903975e-06
+inactivity      0.10690985 0.20812437   0.5136825 6.074740e-01
+```
+
+## Probability distribution per outcome category
+
+This is the last among four measures and plots, which Van Calster et al. (2024) regard as being essential in reporting a clinical prediction model.
+
+```{r echo=TRUE, eval = FALSE}
+# Apparent = The full dataset is used for developing and for 'validating' the prediction model.
+pApparent <- glm(newAud ~ ., family = binomial(link="logit"), data=d)$fitted.values
+# probDistr: Probability distribution
+probDistr <- data.frame(newAud=as.factor(d$newAud), p_app=pApparent)
+# Display the probability distribution
+p <- 
+ggplot(data=probDistr, aes(x=newAud, y=p_app)) +
+    geom_violin() +
+    geom_jitter(height = 0, width = 0.1) +
+    xlab(label="New onset alcohol use disorder (DSM-5)") +
+    ylab(label="Apparent predicted probabilities") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.position = "none")
+```
+
+### Alternative probability distribution
+
+Alternatively, this visualization may also be regarded as helpful. It shows the same probability distribution in a different way. The two vertical dashed lines show the threshold probabilities of 1 and of 5 percent. If 1 percent was selected, a lot of false positives (grey and at the right of the 1 percent dashed line) would get offered treatment. Whereas, if 5 percent was selected as threshold, all observed cases (red) between the two dashed lines would be missed, but also way fewer false positives (grey and at the right side of 5 percent dashed line) would get offered treatment.
+
+```{r echo=TRUE, eval = FALSE}
+# Display probability distribution in an alternative way.
+probDistrOrdered <- probDistr[order(probDistr$newAud),]
+probDistrOrdered$id <- 1:nrow(probDistrOrdered)
+p <- 
+    ggplot(data=probDistrOrdered, aes(x=p_app, y=id, col=newAud)) +
+    geom_point() +
+    geom_vline(xintercept = c(.01, .05), linetype = "dashed") +
+    scale_color_manual(values=c("0"="gray", "1"="red")) +
+    xlab(label="Apparent predicted probabilities") +
+    ylab(label="Study sample (N = 3654)") +
+    
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        legend.text = element_text(size=14),
+        legend.title = element_text(size=14),
+        panel.border = element_rect(color="grey", fill=NA))
+```
+
+# Analysis code end
+
+# Session info
+
+All necessary technical information, regarding the above vignette of this R package predictAUDPsyCoLaus.
+
+```{r echo=TRUE, eval = FALSE}
+R version 4.4.0 (2024-04-24)
+Platform: x86_64-apple-darwin20
+Running under: macOS Sonoma 14.2.1
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] predictAUDPsyCoLaus_0.1.0  modgo_1.0.1               
+ [3] samplesizedev_1.0.0.0      precrec_0.14.2            
+ [5] rms_6.8-1                  Hmisc_5.2-2               
+ [7] ClinicalUtilityRecal_0.1.0 pminternal_0.0.1          
+ [9] pmcalibration_0.1.0        gridExtra_2.3             
+[11] cowplot_1.1.3              ggplot2_3.5.1             
+[13] mysml_0.1.0                ranger_0.17.0             
+[15] tidyr_1.3.1                magrittr_2.0.3            
+[17] dplyr_1.1.4               
+
+loaded via a namespace (and not attached):
+  [1] mnormt_2.1.1         Rdpack_2.6.2         pbapply_1.7-2       
+  [4] pROC_1.18.5          sandwich_3.1-0       rlang_1.1.4         
+  [7] multcomp_1.4-25      polspline_1.1.25     compiler_4.4.0      
+ [10] vctrs_0.6.5          reshape2_1.4.4       RcppZiggurat_0.1.6  
+ [13] quantreg_5.98        stringr_1.5.1        pkgconfig_2.0.3     
+ [16] fastmap_1.2.0        backports_1.5.0      rmarkdown_2.29      
+ [19] prodlim_2024.06.25   nloptr_2.1.1         MatrixModels_0.5-3  
+ [22] purrr_1.0.2          Rfast_2.1.0          xfun_0.50           
+ [25] recipes_1.1.0        psych_2.4.6.26       parallel_4.4.0      
+ [28] cluster_2.1.6        R6_2.5.1             stringi_1.8.4       
+ [31] parallelly_1.41.0    rpart_4.1.23         lubridate_1.9.4     
+ [34] Rcpp_1.0.14          iterators_1.0.14     knitr_1.49          
+ [37] future.apply_1.11.3  zoo_1.8-12           base64enc_0.1-3     
+ [40] Matrix_1.7-0         splines_4.4.0        nnet_7.3-19         
+ [43] timechange_0.3.0     tidyselect_1.2.1     yaml_2.3.10         
+ [46] rstudioapi_0.17.1    timeDate_4041.110    doParallel_1.0.17   
+ [49] codetools_0.2-20     listenv_0.9.1        lattice_0.22-6      
+ [52] tibble_3.2.1         plyr_1.8.9           GLDEX_2.0.0.9.3     
+ [55] withr_3.0.2          evaluate_1.0.3       foreign_0.8-86      
+ [58] future_1.34.0        survival_3.5-8       RcppParallel_5.1.8  
+ [61] fitdistrplus_1.1-8   pillar_1.10.1        rsconnect_0.8.26    
+ [64] checkmate_2.3.2      foreach_1.5.2        stats4_4.4.0        
+ [67] generics_0.1.3       munsell_0.5.1        scales_1.3.0        
+ [70] globals_0.16.3       class_7.3-22         CalibratR_0.1.2     
+ [73] glue_1.8.0           tools_4.4.0          data.table_1.16.4   
+ [76] SparseM_1.84         ModelMetrics_1.2.2.2 gower_1.0.2         
+ [79] forcats_1.0.0        mvtnorm_1.2-5        grid_4.4.0          
+ [82] rbibutils_2.3        wesanderson_0.3.7    ipred_0.9-15        
+ [85] colorspace_2.1-1     patchwork_1.2.0      nlme_3.1-164        
+ [88] RNGforGPD_1.1.0      htmlTable_2.4.3      spacefillr_0.3.3    
+ [91] Formula_1.2-5        cli_3.6.3            gp_1.1              
+ [94] lava_1.8.1           corpcor_1.6.10       ggcorrplot_0.1.4.1  
+ [97] gtable_0.3.6         digest_0.6.37        caret_7.0-1         
+[100] TH.data_1.1-2        htmlwidgets_1.6.4    htmltools_0.5.8.1   
+[103] lifecycle_1.0.4      hardhat_1.4.0        MASS_7.3-60.2
+```
+
+**References**
+
+Goldstein, N. D. (2024). Improved reporting of selection processes in clinical database research. Response to de Kok et al. *Journal of clinical epidemiology*. [DOI](https://doi.org/10.1016/j.jclinepi.2024.111373)
+
+Vickers, A. J., & Elkin, E. B. (2006). Decision curve analysis: a novel method for evaluating prediction models. *Medical Decision Making, 26*(6), 565-574. [DOI](https://doi.org/10.1177/0272989X06295361)
+
+Vickers, A. J., van Calster, B., & Steyerberg, E. W. (2019). A simple, step-by-step guide to interpreting decision curve analysis. *Diagnostic and prognostic research, 3*, 1-8. [DOI](https://doi.org/10.1186/s41512-019-0064-7)
+
+Van Calster, B., Collins, G. S., Vickers, A. J., Wynants, L., Kerr, K. F., Barreñada, L., ... & Steyerberg, E. W. (2024). Performance evaluation of predictive AI models to support medical decisions: Overview and guidance. [arXiv:2412.10288](https://doi.org/10.48550/arXiv.2412.10288)
+
+Janssens, A. C. J., & Martens, F. K. (2020). Reflection on modern methods: Revisiting the area under the ROC Curve. *International journal of epidemiology, 49*(4), 1397-1403. [DOI](https://doi.org/10.1093/ije/dyz274)
+
+Pavlou, M., Ambler, G., Qu, C., Seaman, S. R., White, I. R., & Omar, R. Z. (2024). An evaluation of sample size requirements for developing risk prediction models with binary outcomes. *BMC Medical Research Methodology, 24*(1), 146. [DOI](https://doi.org/10.1186/s12874-024-02268-5)
+
+Koliopanos, G., Ojeda, F., & Ziegler, A. (2023). A Simple-to-Use R Package for Mimicking Study Data by Simulations. *Methods of Information in Medicine, 62*(03/04), 119-129. [DOI](https://doi.org/10.1055/a-2048-7692)
+
+Riley, R. D., & Collins, G. S. (2023). Stability of clinical prediction models developed using statistical or machine learning methods. *Biometrical Journal, 65*(8), 2200302. [DOI](https://doi.org/10.1002/bimj.202200302)
+
+Rhodes S (2024). _pminternal: Internal Validation of Clinical Prediction Models_. R
+  package version 0.0.1, [https://github.com/stephenrho/pminternal](https://github.com/stephenrho/pminternal)
+
+Collins, G. S., Dhiman, P., Ma, J., Schlussel, M. M., Archer, L., Van Calster, B., ... & Riley, R. D. (2024). Evaluation of clinical prediction models (part 1): from development to external validation. *bmj, 384*. [DOI](http://dx.doi.org/10.1136/bmj‑2023‑074819)
+
+Mishra, A., McClelland, R. L., Inoue, L. Y., & Kerr, K. F. (2022). Recalibration methods for improved clinical utility of risk scores. Medical Decision Making, 42(4), 500-512. [DOI](https://doi.org/10.1177/0272989X211044697)
+
+Kerr, K. F., Brown, M. D., Zhu, K., & Janes, H. (2016). Assessing the clinical impact of risk prediction models with decision curves: guidance for correct interpretation and appropriate use. Journal of Clinical Oncology, 34(21), 2534-2540. [DOI](https://doi.org/10.1200/JCO.2015.65.5654)

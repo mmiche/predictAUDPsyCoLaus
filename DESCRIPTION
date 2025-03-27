@@ -1,0 +1,34 @@
+Package: predictAUDPsyCoLaus
+Type: Package
+Title: predictAUDPsyCoLaus
+Version: 0.1.0
+Date/Publication: 2025-03-27
+Author: Marcel Miché
+Maintainer: Marcel Miché <marcel.miche.predictme@gmail.com>
+Description: Provide full transparency of analysis code for a clinical prediction model of new onset alcohol use disorder.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Imports: Rdpack,
+         ClinicalUtilityRecal,
+         dplyr,
+         tidyr,
+         tibble,
+         ranger,
+         ggplot2,
+         magrittr,
+         mysml,
+         pbapply,
+         pmcalibration,
+         pminternal,
+         parallel
+RdMacros: Rdpack
+RoxygenNote: 7.2.3
+Depends: 
+    R (>= 4.0.0)
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
+LazyData: true
+URL: https://github.com/mmiche/predictAUDPsyCoLaus
+BugReports: https://github.com/mmiche/predictAUDPsyCoLaus/issues
