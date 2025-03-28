@@ -16,6 +16,7 @@
 #' @author Marcel Miché
 #
 #' @importFrom ggplot2 ggplot aes coord_cartesian dup_axis element_blank element_rect element_text geom_errorbar geom_line geom_point guide_legend guides labs position_dodge scale_colour_manual scale_x_continuous theme ylab ylim
+#' @importFrom rlang .data
 #
 #' @examples
 #' # See the accompanying R script and this package's vignette,
@@ -44,8 +45,8 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
     htbPlot <- function(x) paste0("1:", round((1-x)/x, digits=2))
     # Make dca plot
     dcaPlot <- 
-        ggplot(data=dca, aes(x=threshold, y=net_benefit, colour=label)) +
-        geom_line(aes(colour=label), linewidth=.75) +
+        ggplot(data=dca, aes(x=.data$threshold, y=.data$net_benefit, colour=.data$label)) +
+        geom_line(aes(colour=.data$label), linewidth=.75) +
         labs(color=NULL) +
         scale_x_continuous(
             sec.axis = dup_axis(name="Harm-to-benefit ratio", labels=htbPlot)) +
@@ -71,14 +72,14 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
         if(bothModels) {
             dcaPlotOverlay <- 
                 dcaPlot +
-                geom_point(aes(y=mn), size=3, position = position_dodge(width=.002)) +
-                geom_errorbar(width=.003, aes(ymin=lci, ymax=uci), linewidth=1, position=position_dodge(width=0.002)) +
+                geom_point(aes(y=.data$mn), size=3, position = position_dodge(width=.002)) +
+                geom_errorbar(width=.003, aes(ymin=.data$lci, ymax=.data$uci), linewidth=1, position=position_dodge(width=0.002)) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         } else {
             dcaPlotOverlay <- 
                 dcaPlot +
-                geom_point(aes(y=mn), size=3) +
-                geom_errorbar(width=.003, aes(ymin=lci, ymax=uci), linewidth=1) +
+                geom_point(aes(y=.data$mn), size=3) +
+                geom_errorbar(width=.003, aes(ymin=.data$lci, ymax=.data$uci), linewidth=1) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         }
         
@@ -88,14 +89,14 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
         if(bothModels) {
             dcaPlotOverlay <- 
                 dcaPlot +
-                geom_point(aes(y=mn), size=3, position = position_dodge(width=.002)) +
-                geom_errorbar(width=.003, aes(ymin=min, ymax=max), linewidth=1, position=position_dodge(width=0.002)) +
+                geom_point(aes(y=.data$mn), size=3, position = position_dodge(width=.002)) +
+                geom_errorbar(width=.003, aes(ymin=.data$min, ymax=.data$max), linewidth=1, position=position_dodge(width=0.002)) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         } else {
             dcaPlotOverlay <- 
                 dcaPlot +
-                geom_point(aes(y=mn), size=3) +
-                geom_errorbar(width=.003, aes(ymin=min, ymax=max), linewidth=1) +
+                geom_point(aes(y=.data$mn), size=3) +
+                geom_errorbar(width=.003, aes(ymin=.data$min, ymax=.data$max), linewidth=1) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         }
         
@@ -105,14 +106,14 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
         if(bothModels) {
             dcaPlotOverlay <- 
                 dcaPlot +
-                geom_point(aes(y=mn), size=3, position = position_dodge(width=.002)) +
-                geom_errorbar(width=.003, aes(ymin=q1, ymax=q3), linewidth=1, position=position_dodge(width=0.002)) +
+                geom_point(aes(y=.data$mn), size=3, position = position_dodge(width=.002)) +
+                geom_errorbar(width=.003, aes(ymin=.data$q1, ymax=.data$q3), linewidth=1, position=position_dodge(width=0.002)) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         } else {
             dcaPlotOverlay <- 
                 dcaPlot +
-                geom_point(aes(y=mn), size=3) +
-                geom_errorbar(width=.003, aes(ymin=q1, ymax=q3), linewidth=1) +
+                geom_point(aes(y=.data$mn), size=3) +
+                geom_errorbar(width=.003, aes(ymin=.data$q1, ymax=.data$q3), linewidth=1) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         }
     }
