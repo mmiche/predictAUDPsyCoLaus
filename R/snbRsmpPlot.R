@@ -18,6 +18,7 @@
 #' @importFrom magrittr %>%
 #' @importFrom ggplot2 ggplot aes facet_wrap geom_line
 #' @importFrom tidyr pivot_longer
+#' @importFrom rlang .data
 #
 #' @examples
 #' # This function is used by its wrapper function \code{snbVals}.
@@ -35,20 +36,20 @@ snbRsmpPlot <- function(data=NULL) {
         stop("Column names must include these names: snbOrig, snbStdRecal, snbConstRecal, rsmp.")
     }
     # Prepare data for plotting:
-    data1 <- data[,c("snbOrig", "snbStdRecal", "snbConstRecal", "rsmp")] %>% 
+    data1 <- data[,c("snbOrig", "snbStdRecal", "snbConstRecal", "rsmp")] %>%
         tidyr::pivot_longer(
-            cols = !rsmp,
+            cols = !.data$rsmp,
             names_to = "snbSource",
             values_to = "snb"
         )
-    # 
+    #
     data1$snbSource <- factor(data1$snbSource,
                               levels=c("snbOrig", "snbStdRecal", "snbConstRecal"))
     data1$snbMax <- rep(data$snbMax, each = 3)
-    
+
     return(
-        ggplot(data=data1, aes(x=rsmp, y=snb, color = snbSource)) +
+        ggplot(data=data1, aes(x=.data$rsmp, y=.data$snb, color = .data$snbSource)) +
             geom_line() +
-            facet_wrap(~snbSource)
+            facet_wrap(~.data$snbSource)
     )
 }

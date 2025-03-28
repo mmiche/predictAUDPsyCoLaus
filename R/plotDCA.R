@@ -29,9 +29,8 @@
 #
 #' @export
 #
-# allDCA = allDCALs$allDCA; bothModels=FALSE
 plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
-    
+
     if(bothModels) {
         dca <- allDCA
         useColor <- c("Treat all" = "black", "Treat none" = "darkgrey",
@@ -44,7 +43,7 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
     }
     htbPlot <- function(x) paste0("1:", round((1-x)/x, digits=2))
     # Make dca plot
-    dcaPlot <- 
+    dcaPlot <-
         ggplot(data=dca, aes(x=.data$threshold, y=.data$net_benefit, colour=.data$label)) +
         geom_line(aes(colour=.data$label), linewidth=.75) +
         labs(color=NULL) +
@@ -65,52 +64,52 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
             legend.position = "top",
             legend.title = element_blank()) +
         labs(x="Threshold probability")
-    
+
     if(any(colnames(dca) == "lci")) {
         # Mean net benefit and 95% CI:
         # ---------------------------
         if(bothModels) {
-            dcaPlotOverlay <- 
+            dcaPlotOverlay <-
                 dcaPlot +
                 geom_point(aes(y=.data$mn), size=3, position = position_dodge(width=.002)) +
                 geom_errorbar(width=.003, aes(ymin=.data$lci, ymax=.data$uci), linewidth=1, position=position_dodge(width=0.002)) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         } else {
-            dcaPlotOverlay <- 
+            dcaPlotOverlay <-
                 dcaPlot +
                 geom_point(aes(y=.data$mn), size=3) +
                 geom_errorbar(width=.003, aes(ymin=.data$lci, ymax=.data$uci), linewidth=1) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         }
-        
+
     } else if(any(colnames(dca) == "min")){
         # Mean and Minimum/Maximum net benefit:
         # ------------------------------------
         if(bothModels) {
-            dcaPlotOverlay <- 
+            dcaPlotOverlay <-
                 dcaPlot +
                 geom_point(aes(y=.data$mn), size=3, position = position_dodge(width=.002)) +
                 geom_errorbar(width=.003, aes(ymin=.data$min, ymax=.data$max), linewidth=1, position=position_dodge(width=0.002)) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         } else {
-            dcaPlotOverlay <- 
+            dcaPlotOverlay <-
                 dcaPlot +
                 geom_point(aes(y=.data$mn), size=3) +
                 geom_errorbar(width=.003, aes(ymin=.data$min, ymax=.data$max), linewidth=1) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         }
-        
+
     } else if(any(colnames(dca) == "q1")) {
         # Mean and q1/q3 net benefit:
         # ------------------------------------
         if(bothModels) {
-            dcaPlotOverlay <- 
+            dcaPlotOverlay <-
                 dcaPlot +
                 geom_point(aes(y=.data$mn), size=3, position = position_dodge(width=.002)) +
                 geom_errorbar(width=.003, aes(ymin=.data$q1, ymax=.data$q3), linewidth=1, position=position_dodge(width=0.002)) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         } else {
-            dcaPlotOverlay <- 
+            dcaPlotOverlay <-
                 dcaPlot +
                 geom_point(aes(y=.data$mn), size=3) +
                 geom_errorbar(width=.003, aes(ymin=.data$q1, ymax=.data$q3), linewidth=1) +
