@@ -110,7 +110,7 @@ boot_optimismDCA <- function (data, outcome="newAud", B = 200, thresholds = NULL
             dca_orig <- dca_fun(y=y, p=p_orig, thresholds = thresholds)
 
             p_boot <- pred_fun(model = model_i, data = data_i)
-            dca_boot <- dca_fun(y=data_i$newAud, p=p_boot, thresholds = thresholds)
+            dca_boot <- dca_fun(y=data_i[[outcome]], p=p_boot, thresholds = thresholds)
 
             # score_orig <- score_fun(y = data[[outcome]], p = p_orig,
             #                         ...)
