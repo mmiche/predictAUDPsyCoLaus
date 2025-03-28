@@ -9,6 +9,7 @@ Description: Provide full transparency of analysis code for a clinical predictio
 License: MIT + file LICENSE
 Encoding: UTF-8
 Imports: Rdpack,
+         rlang,
          ClinicalUtilityRecal,
          dplyr,
          tidyr,
