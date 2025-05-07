@@ -52,7 +52,7 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
         scale_x_continuous(
             sec.axis = dup_axis(name="Harm-to-benefit ratio", labels=htbPlot)) +
         # Take control of the y-axis: How much of the negative part shall be visible?
-        coord_cartesian(ylim=c(0, .08), xlim=c(0, .12)) +
+        coord_cartesian(ylim=c(-.005, .033), xlim=c(0, .05)) +
         scale_colour_manual(values = useColor) +
         ylab(label="Net benefit") +
         theme(
