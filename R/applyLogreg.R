@@ -19,6 +19,8 @@
 #
 #' @author Marcel Miché
 #
+#' @importFrom stats binomial family glm predict
+#
 #' @examples
 #' # See the accompanying R script and this package's vignette,
 #' # section Repeated k-fold cross-validation.

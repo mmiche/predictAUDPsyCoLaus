@@ -23,7 +23,7 @@ Imports: Rdpack,
          pminternal,
          parallel
 RdMacros: Rdpack
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
 Depends: 
     R (>= 4.0.0)
 Suggests: 

@@ -31,15 +31,17 @@
 #
 plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
 
+    modNames <- as.character(unique(allDCA$label))
+    
     if(bothModels) {
         dca <- allDCA
-        useColor <- c("Treat all" = "black", "Treat none" = "darkgrey",
-                      "Logistic regression" = "red", "Random forest" = "blue")
+        useColor <- c("black", "darkgrey", "red", "blue")
+        names(useColor) <- modNames
     } else {
-        dca <- allDCA[!allDCA$label %in% "Random forest",]
+        dca <- allDCA[!allDCA$label %in% modNames[length(modNames)],]
         dca$label <- droplevels(dca$label)
-        useColor <- c("Treat all" = "black", "Treat none" = "darkgrey",
-                      "Logistic regression" = "red")
+        useColor <- c("black", "darkgrey", "red")
+        names(useColor) <- modNames[-length(modNames)]
     }
     htbPlot <- function(x) paste0("1:", round((1-x)/x, digits=2))
     # Make dca plot
@@ -50,7 +52,7 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
         scale_x_continuous(
             sec.axis = dup_axis(name="Harm-to-benefit ratio", labels=htbPlot)) +
         # Take control of the y-axis: How much of the negative part shall be visible?
-        coord_cartesian(ylim=c(-.005, .033), xlim=c(0, .05)) +
+        coord_cartesian(ylim=c(0, .08), xlim=c(0, .12)) +
         scale_colour_manual(values = useColor) +
         ylab(label="Net benefit") +
         theme(
@@ -64,7 +66,7 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
             legend.position = "top",
             legend.title = element_blank()) +
         labs(x="Threshold probability")
-
+    
     if(any(colnames(dca) == "lci")) {
         # Mean net benefit and 95% CI:
         # ---------------------------
@@ -81,7 +83,7 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
                 geom_errorbar(width=.003, aes(ymin=.data$lci, ymax=.data$uci), linewidth=1) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         }
-
+        
     } else if(any(colnames(dca) == "min")){
         # Mean and Minimum/Maximum net benefit:
         # ------------------------------------
@@ -98,7 +100,7 @@ plotDCA <- function(allDCA = NULL, bothModels=FALSE) {
                 geom_errorbar(width=.003, aes(ymin=.data$min, ymax=.data$max), linewidth=1) +
                 guides(color = guide_legend(override.aes = list(shape=NA)))
         }
-
+        
     } else if(any(colnames(dca) == "q1")) {
         # Mean and q1/q3 net benefit:
         # ------------------------------------
