@@ -43,6 +43,7 @@ calibration_stability1 <- function(x) {
     calib_args[["eval"]] <- 100
     calib_args[["p"]] <- stabil[,1]
     calib_args[["y"]] <- y
+    calib_args[["plot"]] <- FALSE
     curves <- apply(stabil, 2, function(p) {
         calib_args[["p"]] <- p
         calib_args[["y"]] <- y
