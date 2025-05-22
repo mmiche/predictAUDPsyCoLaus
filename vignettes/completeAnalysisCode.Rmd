@@ -1,7 +1,7 @@
 ---
 title: "predictAUDPsyCoLaus vignette"
 author: "Marcel Miché"
-date: "2025-03-27"
+date: "2025-05-21"
 output:
   html_document:
     theme: yeti
@@ -23,7 +23,7 @@ This vignette accompanies the R package predictAUDPsyCoLaus, which serves as sup
 ## Dowload of this predictAUDPsyCoLaus R package
 
 This predictAUDPsyCoLaus R package can be downloaded from GitHub, e.g., by running these lines of code in R:
-```{r echo=TRUE, eval = FALSE}
+```{r chunk00, echo=TRUE, eval = FALSE}
 # Note: The R package devtools must have been installed, in order for this line of code to work:
 devtools::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
                       dependencies = "Imports", build_vignettes = TRUE)
@@ -31,14 +31,14 @@ devtools::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
 
 ## Load these R packages
 
-For installation details of the following packages, e.g., to copy and paste package installation code, see **Info** on the [predictAUDPsyCoLaus GitHub page](https://github.com/mmiche/predictAUDPsyCoLaus).
+For installation details of the following packages, e.g., to copy and paste package installation code, see **README Info** on the [predictAUDPsyCoLaus GitHub page](https://github.com/mmiche/predictAUDPsyCoLaus).
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk01, echo=TRUE, eval = FALSE}
 library(dplyr) # version 1.1.4 (Download from CRAN)
 library(magrittr) # version 2.0.3 (Download from CRAN)
 library(tidyr) # version 1.3.1 (Download from CRAN)
 library(ranger) # version 0.17.0 (Download from CRAN)
-# https://github.com/mmiche/mysml
+# https://github.com/mmiche/mysml   (Download code - copy paste from this URL)
 library(mysml) # version 0.1.0 (Download from GitHub)
 library(ggplot2) # version 3.5.1 (Download from CRAN)
 library(cowplot) # version 1.1.3 (Download from CRAN)
@@ -62,8 +62,8 @@ The original study data cannot be published, due to data privacy laws. The dummy
 
 # Repeated k-fold cross-validation - Setup
 
-```{r echo=TRUE, eval = FALSE}
-# Note: Setting a seed guarantees perfect reproducibility of the computation procedure. This is especially important, when random processes (based on the computer) are involved.
+```{r chunk1, echo=TRUE, eval = FALSE}
+# Note: Setting a seed guarantees perfect reproducibility of the computation procedure. This is especially important, when random processes (simulated by the computer) are involved.
 set.seed(1)
 # 5-fold CV = 5 80/20 splits; 20 seeds = 20 repetitions of 5 fold = 100 final test results.
 seeds <- sample(1:10e6, size=20)
@@ -79,13 +79,13 @@ unique(unlist(lapply(TestLs, FUN=function(x) mean(x$newAud))))
 
 ## Repeated k-fold cross-validation - Run
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk2, echo=TRUE, eval = FALSE}
 # Make empty named list:
 predProbsLs <- sapply(c("logreg", "rf"),function(x) NULL) #
 preds <- c("Sex", "iSES15", "MARIE", "MDDPD2", "ADAPU2", "Week_ALC_type6", "smokingstatus", "inactivity")
 fmla <- formula(paste0("newAud ~ ", paste0(preds, collapse = "+")))
 fmla.f <- formula(paste0("factor(newAud) ~ ", paste0(preds, collapse = "+")))
-startTime <- Sys.time()
+startTime <- Sys.time() # Takes approx. 30-40 seconds.
 for(m in 1:length(TrainLs)) {
     # Select training and test subset
     Train.m <- TrainLs[[m]]
@@ -103,14 +103,14 @@ for(m in 1:length(TrainLs)) {
     predProbsLs[["rf"]][[m]] <- rndmFrst_m$TestCV
 }
 endTime <- Sys.time()
-difftime(endTime, startTime) # Approx. 40 seconds.
+difftime(endTime, startTime)
 ```
 
 The resulting list predProbs contains the predicted probabilities and the observed outcome from all cross-validations, from both prediction models (logistic regression and random forest).
 
 The following for-loop calibrates the predicted probabilities of the random forest model. The reason for this is shown in the comment above the for-loop.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk3, echo=TRUE, eval = FALSE}
 # Use standard recalibration of random forest pred. probs., before comparing logreg and rf. Reason: Niculescu-Mizil & Caruana (2005; https://doi.org/10.1145/1102351.1102430, page 5:
 # "If we add noise to the trees that bagging is averaging over, this noise will cause some [...]. We observe this effect most strongly with random forests [...]. Post-calibration seems to help mitigate this problem."
 for(i in 1:length(predProbsLs[["rf"]])) {
@@ -125,10 +125,12 @@ for(i in 1:length(predProbsLs[["rf"]])) {
 
 Relevant results of a clinical prediction model, which may one day be used for clinical decision making, are, first, clinical utility (decision curve analysis, net benefit), second, calibration, and third, discrimination, e.g., Van Calster et al. (2024).
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk4, echo=TRUE, eval = FALSE}
 relRes <- mysml::computeRelevantResults(
     predictionOutputLs = predProbsLs,
-    dcaReasonableThresholds = c(.01, .02, .03, .04, .05))
+    dcaReasonableThresholds = c(.01, .02, .03, .04, .05),
+    fullModelNames = c("Logistic regression",
+                       "Random forest"))
 ```
 
 The resulting list relRes (relevant results) contains the results, which are then used either for visualization, or for presenting the results in a table.
@@ -139,39 +141,39 @@ Possibly the two most important rules in constructing a DCA (Vickers and Elkin, 
 
 Note that a more intensive diagnostic procedure, instead of a therapeutic treatment, may also be the objective of the clinical decision, which the prediction model may be used for.
 
-It is recommended (e.g., Vickers et al., 2019) to select a reasonable range of threshold probabilities for the envisioned treatment, due to the fact that people differ regarding their estimation of health risks, i.e., whether to take action or whether to wait.
+It is recommended (e.g., Vickers et al., 2019) to select a reasonable range of threshold probabilities for the envisioned treatment, due to the fact that people differ regarding their estimation of health risks, i.e., whether to take action right away or whether to wait a little longer.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk5, echo=TRUE, eval = FALSE}
 # Decision curve analysis (DCA)
 # dcaSelectType: One out of these three options: mnci, mnminmax, mnq1q3.
 # mnci: mean net benefit, with lower to upper 95 percent CI.
 # mnminmax: mean net benefit, with minimum to maximum value.
 # mnq1q3: mean net benefit, with 25th to 75th percentile.
-allDCALs <- visualizeMultipleDCA(dcaLs = relRes$dcaLs, dcaSelectType = "mnminmax")
+allDCALs <- visualizeMultipleDCA(dcaLs = relRes$dcaLs, dcaSelectType = "mnq1q3")
 allDCALs$logregNB
 # Output in R console (based on the original data)
-  thrsh  Median    Mean      Min     qu1     qu3    Max
-  <dbl>   <dbl>   <dbl>    <dbl>   <dbl>   <dbl>  <dbl>
-1  0.01 0.0225  0.0223  0.0195   0.0216  0.0230  0.0239
-2  0.02 0.0171  0.0171  0.0104   0.0156  0.0189  0.0218
-3  0.03 0.0123  0.0122  0.00509  0.0103  0.0139  0.0196
-4  0.04 0.00866 0.00859 0.000684 0.00650 0.0101  0.0163
-5  0.05 0.00663 0.00677 0.000648 0.00456 0.00845 0.0140
+  thrsh  Median    Mean      Min     qu1     lci     uci     qu3    Max
+  <dbl>   <dbl>   <dbl>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>  <dbl>
+1  0.01 0.0225  0.0223  0.0195   0.0216  0.0221  0.0225  0.0230  0.0239
+2  0.02 0.0171  0.0171  0.0104   0.0156  0.0167  0.0176  0.0189  0.0218
+3  0.03 0.0123  0.0122  0.00509  0.0103  0.0116  0.0127  0.0139  0.0196
+4  0.04 0.00866 0.00859 0.000684 0.00650 0.00800 0.00917 0.0101  0.0163
+5  0.05 0.00663 0.00677 0.000648 0.00456 0.00622 0.00732 0.00845 0.0140
 
 allDCALs$rfNB
 # Output in R console (based on the original data)
-  thrsh  Median    Mean      Min     qu1     qu3    Max
-  <dbl>   <dbl>   <dbl>    <dbl>   <dbl>   <dbl>  <dbl>
-1  0.01 0.0224  0.0225   0.0196  0.0218  0.0231  0.0255
-2  0.02 0.0165  0.0166   0.0115  0.0150  0.0182  0.0220
-3  0.03 0.0119  0.0119   0.00540 0.0102  0.0138  0.0180
-4  0.04 0.00812 0.00824  0.00114 0.00650 0.0103  0.0151
-5  0.05 0.00504 0.00503 -0.00144 0.00293 0.00671 0.0141
+  thrsh  Median    Mean      Min     qu1     lci     uci     qu3    Max
+  <dbl>   <dbl>   <dbl>    <dbl>   <dbl>   <dbl>   <dbl>   <dbl>  <dbl>
+1  0.01 0.0224  0.0225   0.0196  0.0218  0.0223  0.0227  0.0231  0.0255
+2  0.02 0.0165  0.0166   0.0115  0.0150  0.0162  0.0171  0.0182  0.0220
+3  0.03 0.0119  0.0119   0.00540 0.0102  0.0113  0.0124  0.0138  0.0180
+4  0.04 0.00812 0.00824  0.00114 0.00650 0.00765 0.00883 0.0103  0.0151
+5  0.05 0.00504 0.00503 -0.00144 0.00293 0.00443 0.00564 0.00671 0.0141
 ```
 
 To visualize the decision curve analysis, either only for logistic regression, or for both prediction models (set argument 'bothModels' to TRUE):
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk6, echo=TRUE, eval = FALSE}
 # Plot the DCA
 dcaPlotLs <- plotDCA(allDCA = allDCALs$allDCA, bothModels = FALSE)
 # Display the plots (with or without intervals)
@@ -183,7 +185,7 @@ dcaPlotLs$dcaPlot2 # with selected interval: mnci, mnminmax, or mnq1q3.
 
 Next relevant result, after clinical utility, is calibration. The best way of presenting calibration is the so-called calibration plot.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk7, echo=TRUE, eval = FALSE}
 calibLRLs <- mysml::makeCalibPlotLs(calibLs=relRes$orderedObsLs, model="logreg")
 calibRFLs <- mysml::makeCalibPlotLs(calibLs=relRes$orderedObsLs, model="rf")
 
@@ -225,9 +227,9 @@ lrCalAllSeeds <-
         legend.position = "top")
 ```
 
-Produce the same ggplot for random forest, if you want to. Additionally, if wanted, compute some calibration summary results. They are way less relevant, compared to clinical utility results, because they treat the whole breadth of predicted probabilities as if they are all equally important. However, this is most likely never the case in clinical reality, which is the reason why a 'reasonable range of threshold probabilities' must be selected as part of a decision curve analysis (see DCA description above).
+Produce the same ggplot for random forest, if you want to. Additionally, if wanted, compute some calibration summary results. They are way less relevant, compared to clinical utility results, because they treat the whole range of predicted probabilities as if they are all equally important. However, this is most likely never the case in clinical reality, which is the reason why a 'reasonable range of threshold probabilities' must be selected as part of a decision curve analysis (see DCA description above).
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk8, echo=TRUE, eval = FALSE}
 # Calibration results
 calibResultsLs <- lapply(relRes$calibLs, FUN=function(x) {
     mysml::myCalib(calibDf = x, outcome="observed")
@@ -240,7 +242,7 @@ calibDf <- dplyr::bind_rows(calibPerfWLs)
 rownames(calibDf) <- 1:nrow(calibDf)
 calibDf$model <- factor(rep(c("logreg", "randomForest"), levels=c("logreg", "randomForest")))
 
-# ICI (integrated calibration index)
+# ICI (ici = integrated calibration index)
 # ----------
 summary(calibDf$ici[calibDf$model=="logreg"])
 summary(calibDf$ici[calibDf$model=="randomForest"])
@@ -261,7 +263,7 @@ calibBoxPlot <-
 
 Least important, from the clinically practical point of view, is discrimination, e.g., Janssens and Martens (2020).
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk9, echo=TRUE, eval = FALSE}
 # Discrimination
 logreg_rocauc <- unlist(lapply(predProbsLs[["logreg"]], FUN=function(x) {
     precrec::auc(precrec::evalmod(scores=x[,"predicted"], labels=x[,"observed"]))$aucs[1]
@@ -284,11 +286,11 @@ The results from the main analysis consist in clinical utility, calibration, and
 
 # Optimism corrected prediction performance
 
-**Note**. All of the following results refer solely to the logistic regression model, because we did not use the random forest model as a competitor to logistic regression. Detailed reasons can be found in the publication and the other supplementary materials.
+**Note**. All of the following results refer solely to the logistic regression model, because we did not use the random forest model as a competitor to logistic regression. Detailed reasons can be found in the publication and the other supplementary document of this publication.
 
-There exists an alternative to k-fold cross-validation, which makes use of the full data. This bootstrapping alternative is described in Box 1 of Riley and Collins (2023), and in Box 2 of Collins et al. (2024). The procedure is implemented in the R package pminternal (Rhodes, Version 0.0.1). The main advantage of this approach is that the user receives an estimate of the overoptimism of the apparent prediction performance ('apparent' performance are the results, after using the same dataset for training and for testing the prediction model).
+There exists an alternative to k-fold cross-validation, which makes use of the full data. This bootstrapping alternative is described in Box 1 of Riley and Collins (2023), and in Box 2 of Collins et al. (2024). The procedure is implemented in the R package pminternal (Rhodes, Version 0.0.1). The main advantage of this approach is that the user receives an estimate of the overoptimism of the apparent prediction performance ('apparent' performance is the results, when using the same dataset for training as well as for testing the prediction model).
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk10, echo=TRUE, eval = FALSE}
 # Take the total dataset, then fit a logistic regression model to it.
 mod <- glm(newAud ~ ., family = binomial(link="logit"), data = d)
 # Next, run the function validate from the pminternal R package.
@@ -306,9 +308,9 @@ Optimism  0.02 -0.00062      0.17 0.061 0.0018 0.0011 0.0059 0.049 0.0093
 Corrected 0.76  0.02949     -0.17 0.939 0.0046 0.0031 0.0079 0.028 0.0019
 ```
 
-The results show C, which is a measure of discrimination, whereas the remaining measures all belong the the class of calibration measures. Since our main interest is the net benefit, we modified the function 'boot_optimism' of the package pminternal. The modified function 'boot_optimismDCA' is part of this predictAUDPsyCoLaus R package.
+The results show C, which is a measure of discrimination, whereas the remaining measures all belong the the class of calibration measures. Since our main interest is 'net benefit', we modified the function 'boot_optimism' of the package pminternal. The modified function 'boot_optimismDCA' is part of this predictAUDPsyCoLaus R package.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk11, echo=TRUE, eval = FALSE}
 # Newly developed, on the basis of the boot_optimism function of the pminternal R package: Compute optimism corrected net benefit results.
 # Takes approx. 30 seconds.
 set.seed(1)
@@ -327,8 +329,8 @@ Corrected 0.0225 0.0180 0.0123 0.0090 0.0068
 
 We used the R package samplesizedev, provided by Pavlou et al. (2024).
 
-```{r echo=TRUE, eval = FALSE}
-# Compute required sample size N
+```{r chunk12, echo=TRUE, eval = FALSE}
+# Compute required sample size N (Takes approx. 1 min.)
 #
 samplesizedev::samplesizedev(outcome="Binary", S = 0.9, phi = 0.0315, c = 0.7, p= 8, nsim=100)
 #
@@ -344,12 +346,12 @@ samplesizedev::samplesizedev(outcome="Binary", S = 0.9, phi = 0.0315, c = 0.7, p
 
 Next, after knowing that we ought to have a total sample size of 4438, instead of 3654, we employed the modgo R package, which simulates study data in a mimicking way (Koliopanos et al., 2023). Setting the function argument 'nrep' (repetitions) to 500, the simulated data contained 1'827'000 rows of data (500 * 3654).
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk13, echo=TRUE, eval = FALSE}
 # Binary variables of the dataset
 binary_vars <- c("newAud", "ADAPU2", "inactivity", "MDDPD2", "Sex", "MARIE")
 # Number of repetitions of the mimicking simulations.
 modgoReps <- 500
-# Run the mimicking simulations.
+# Run the mimicking simulations. (Takes only a few seconds.)
 rawDataSim <- modgo::modgo(data=d, bin_variables = binary_vars, categ_variables = NULL, nrep=modgoReps, seed=1)
 # Bind all rows together.
 dSim <- dplyr::bind_rows(rawDataSim$simulated_data)
@@ -361,8 +363,7 @@ dSim <- dplyr::bind_rows(rawDataSim$simulated_data)
 
 From that simulated data, we randomly sampled a dataset of size 4438. We repeated this random sampling 5000 times, after which we selected the random sample, whose regression weights (model estimates) of the logistic regression model were as close as possible to the regression weights of the original data.
 
-```{r echo=TRUE, eval = FALSE}
-# d <- readRDS(file="PsyCoLaus3654.rds") # Original data
+```{r chunk14, echo=TRUE, eval = FALSE}
 # pwts: prediction weights
 pwts <- coefficients(glm(newAud ~ ., family = binomial(link="logit"), data=d))
 idxWithOutcome <- which(dSim$newAud == 1)
@@ -371,7 +372,7 @@ set.seed(9)
 seeds <- sample(1:1e+08, size=5000)
 # wtsDiff: difference between the prediction weights
 wtsDiff <- c()
-start <- Sys.time()
+start <- Sys.time() # Takes between 2 and 3 min.
 for(i in seeds) {
     set.seed(i)
     idxSelect.y1 <- sample(idxWithOutcome, size=140)
@@ -384,7 +385,7 @@ for(i in seeds) {
     wtsDiff <- c(wtsDiff, sum(abs(pwts_i - pwts)))
 }
 end <- Sys.time()
-difftime(end, start) # Between 2 and 3 Min.
+difftime(end, start)
 which(wtsDiff == min(wtsDiff)) # Index number between 1 and 5000.
 # BEWARE: Insert the index number (between 1 and 5000) in the squared brackets.
 # For example, if the index number was 4202, set:
@@ -397,9 +398,6 @@ set.seed(seeds[4202])
 idxSelect.y0 <- sample(idxWithoutOutcome, size=4298)
 # Finally, draw the selected rows of data.
 d4438 <- dSim[c(idxSelect.y1, idxSelect.y0),]
-
-# saveRDS(object=d_i, file = "PsyCoLausMimic4438.rds")
-# d4438 <- readRDS(file="PsyCoLausMimic4438.rds")
 ```
 
 In the subsequent sensitivity analyses, we used both, the original data and the mimicked simulation data.
@@ -412,21 +410,22 @@ Since every published clinical prediction model is supposed to be applicable in 
 
 In order to visualize model instability, the output of the function validate (from the pminternal R package) is needed. For the original data, it has already been computed (see above, section 'Optimism corrected prediction performance'), variable name 'val'. If you want to, do the same for the mimicked dataset (see next code chunk)
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk15, echo=TRUE, eval = FALSE}
 # Take the total mimicked dataset (d4438), then fit a logistic regression model to it.
 mod4438 <- glm(newAud ~ ., family = binomial(link="logit"), data = d4438)
 # Next, run the function validate from the pminternal R package.
-start <- Sys.time()
+start <- Sys.time() # Takes between 2 and 3 Min.
 set.seed(1)
 # Set the recommended 500 bootstrap repetitions.
 val2 <- pminternal::validate(fit = mod4438, method = "boot_optimism", B = 500)
 end <- Sys.time()
-difftime(end, start) # Between 2 and 3 Min.
+difftime(end, start)
 ```
 
 We saved the results as val1 (original data), and val2 (mimicked data), with which we then continued to visualize the results.
 
-```{r echo=TRUE, eval = FALSE}
+```{r  chunk15.1, echo=TRUE, eval = FALSE}
+# Use either 'val1' or 'val2' for all prediction stability visualizations.
 # saveRDS(object=val, file="val20250110_3654.rds")
 val1 <- readRDS(file="val20250110_3654.rds")
 # saveRDS(object=val, file="val20250114_4438.rds")
@@ -435,7 +434,7 @@ val2 <- readRDS(file="val20250114_4438.rds")
 
 The five visualizations of model instability are:
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk16, echo=TRUE, eval = FALSE}
 # 1. Prediction stability
 # Displays the variability and range of individual-level predictions across the 500 bootstrap models. See Riley and Collins (2023), Figure 5, top row.
 
@@ -452,10 +451,10 @@ The five visualizations of model instability are:
 # The CII plot displays, for a given threshold probability, how frequently individuals received the opposite classification than in the apparent prediction model. Ideally, the plot displays very low frequencies away from the selected threshold, whereas only very close to the threshold the frequencies are relatively high, because around that threshold, the risk of being classified differently, is highest. See Riley and Collins (2023), Figure 8, bottom row.
 ```
 
-The respective functions within the pminternal R package have been modified by us, because we wanted to visualize the results with ggplot2, instead of the R graphics package. All code examples of model instability use the variable 'val1'.
+The respective functions within the pminternal R package have been modified by us, because we wanted to visualize the results with ggplot2, instead of the R graphics package. All code examples of model instability in this package vignette use the variable 'val1'.
 
 ## Prediction stability
-```{r echo=TRUE, eval = FALSE}
+```{r chunk17, echo=TRUE, eval = FALSE}
 # 1. Prediction stability (select val1 or val2)
 stabilLs <- prediction_stability1(x=val1, smooth_bounds = TRUE)
 stabilDf <- data.frame(p_app=rep(stabilLs$stabilDf[,"p_app"], times=stabilLs$b),
@@ -477,7 +476,7 @@ p <-
         legend.position = "none")
 ```
 ## Calibration stability
-```{r echo=TRUE, eval = FALSE}
+```{r chunk18, echo=TRUE, eval = FALSE}
 # 2. Calibration stability  (select val1 or val2)
 curves <- calibration_stability1(x=val1)
 for(i in length(curves):1) {
@@ -523,7 +522,7 @@ p1 <- p +
         legend.title = element_blank())
 ```
 ## MAPE stability
-```{r echo=TRUE, eval = FALSE}
+```{r chunk19, echo=TRUE, eval = FALSE}
 # 3. MAPE stability (MAPE = mean absolute prediction error)
 # (select val1 or val2)
 stabilLs <- mape_stability1(x=val1)
@@ -533,7 +532,7 @@ p <-
     ggplot(data=stabilLs$mapeDf, aes(x=p_app, y=individual_mape)) +
     geom_point(col="grey") +
     xlab(label="Estimated risk from development model") +
-    ylab(label="Mean absolute prediction error (MAPE)") +
+    ylab(label="MAPE") +
     theme(
         panel.background = element_blank(),
         axis.text.x=element_text(size=16),
@@ -544,7 +543,7 @@ p <-
         legend.position = "none")
 ```
 ## Decision curve stability
-```{r echo=TRUE, eval = FALSE}
+```{r chunk20, echo=TRUE, eval = FALSE}
 # 4. Decision curve stability (select val1 or val2)
 thresholds <- seq(0, .05, by=.01)
 curves <- dcurve_stability1(x=val1, thresholds = thresholds)
@@ -592,7 +591,7 @@ p1 <- p +
     scale_linetype_manual(values = useLinetype) +
     scale_x_continuous(
         sec.axis = dup_axis(name="Harm-to-benefit ratio", labels=htbPlot)) +
-    xlab(label="Threshold probabilities") +
+    xlab(label="Threshold probability") +
     ylab(label="Net benefit (original model/500 bootstrap models)") +
     coord_cartesian(xlim=c(0, .05), ylim=c(0,.0315)) +
     theme(
@@ -607,15 +606,15 @@ p1 <- p +
         legend.title = element_blank())
 ```
 ## Classification instability index
-```{r echo=TRUE, eval = FALSE}
-# 5. Classification instability index (CII) (select val1 or val2)
+```{r chunk21, echo=TRUE, eval = FALSE}
+# 5. Classification instability index (CII) (select val1 or val2; also select threshold = .01, ..., .05)
 classifStabilityDf <- classification_stability1(x=val1, threshold = .03)
 p <- 
     ggplot(data=classifStabilityDf, aes(x=p_orig, y=cii)) +
     geom_point(colour="grey") +
     geom_vline(xintercept=.03, linetype="dashed") +
     xlab(label="Estimated risk from development model") +
-    ylab(label="Classification instability index (CII)") +
+    ylab(label="CII") +
     theme(
         panel.background = element_blank(),
         axis.text.x=element_text(size=16),
@@ -640,18 +639,16 @@ We ran this last part of our sensitivity analyses four times. Two times for the 
 
 ### Repeated 5-fold CV
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk22, echo=TRUE, eval = FALSE}
 # 100 cross-validated results
 # ---------------------------
 # Source: 5-fold CV, 20 repetitions = 100 performance results.
 # The original model's predicted probabilities.
 # predProbsLs (either from N = 3654 or from N = 4438)
-
 collectLs <- list()
-# r <- .01
+start <- Sys.time() # Takes between 1 to 1.5 Mins.
 for(r in seq(.01, .05, by=.01)) {
     recalLRCheckLs <- list()
-
     for(b in 1:length(predProbsLs[["logreg"]])) {
         
         recalLRCheckLs[[b]] <- snbVals(
@@ -663,6 +660,8 @@ for(r in seq(.01, .05, by=.01)) {
     recalLRCheckDf$rsmp <- 1:nrow(recalLRCheckDf)
     collectLs[[paste0("r", r)]] <- recalLRCheckDf
 }
+end <- Sys.time()
+difftime(end, start)
 ```
 
 We saved the collectLs (collected results in a list object) as rds file, before we continued.
@@ -671,7 +670,7 @@ We saved the collectLs (collected results in a list object) as rds file, before 
 
 In order to use this alternative approach, we modified the function boot_optimism of the R package pminternal. We named the modified function boot_optimism1. It is part of this R package predictAUDPsyCoLaus.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk23, echo=TRUE, eval = FALSE}
 set.seed(1)
 bootDf <- boot_optimism1(data=d, outcome = "newAud", B=500)
 dim(bootDf)
@@ -679,13 +678,13 @@ colnames(bootDf) <- c(paste0("p_orig00", 1:9), paste0("p_orig0", 10:99), paste0(
 bootDf$y <- d$newAud
 ```
 
-```{r echo=TRUE, eval = FALSE}
-start <- Sys.time()
+```{r chunk24, echo=TRUE, eval = FALSE}
+start <- Sys.time() # Takes approx. 30 Mins.
 collectLs <- list()
 for(r in seq(.01, .05, by=.01)) {
     recalLRCheckLs <- list()
     for(b in 1:500) {
-
+        
         recalLRCheckLs[[b]] <- snbVals(
             y=bootDf$y,
             p=bootDf[,b],
@@ -696,26 +695,24 @@ for(r in seq(.01, .05, by=.01)) {
     collectLs[[paste0("r", r)]] <- recalLRCheckDf
 }
 end <- Sys.time()
-difftime(end, start) # Approx. 30 Mins.
+difftime(end, start)
 ```
-
-We saved the collectLs (collected results in a list object) as rds file, before we continued.
 
 ## Recalibration stability
 
 Reflecting the above terminology of investigating model instability, e.g., prediction stability, we named this last part of our sensitivity analyses 'recalibration stability'. For each of the four outputs (collectLs), the results can be extracted like this:
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk25, echo=TRUE, eval = FALSE}
 recalStability <- lapply(X=collectLs, FUN = function(x) {
-        xTmp <- recalPotential(x)
-        list(tbl=table(xTmp), ptbl=prop.table(table(xTmp)))
-    })
+    xTmp <- recalPotential(x)
+    list(tbl=table(xTmp), ptbl=prop.table(table(xTmp)))
+})
 dplyr::bind_rows(recalStability)
 ```
 
 The extracted results from the 5-fold CV, based on the original dataset, are:
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk25.1, echo=TRUE, eval = FALSE}
    tbl         ptbl       
    <table[1d]> <table[1d]>
  1 86          0.86       
@@ -734,7 +731,7 @@ Since we selected five threshold probabilities (1, 2, ..., 5 percent), we see 10
 
 The extracted results from the bootstrap CV, based on the original dataset, are:
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk25.2, echo=TRUE, eval = FALSE}
    tbl         ptbl       
    <table[1d]> <table[1d]>
  1 467         0.934      
@@ -753,7 +750,7 @@ In the bootstrap CV, for the threshold probability of 1 percent, 6.6 percent (33
 
 If the reader wants to, s/he can also visualize the results, for any of the five threshold probabilities, e.g., 3 percent. The function snbRsmpPlot is part of this predictAUDPsyCoLaus R package.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk26, echo=TRUE, eval = FALSE}
 # Visualize
 select <- 3 # Threshold probabilities: 1 = .01, 2 = .02, 3 = .03, 4 = .04, 5 = .05.
 data.r <- collectLs[[select]]
@@ -763,7 +760,7 @@ snbRecal100 <- snbRsmpPlot(data=data.r)
 
 In the form of a table, the summarized results can be extracted like this:
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk27, echo=TRUE, eval = FALSE}
 # Summarize (mean snb and 95% lower and upper CI bound)
 lapply(collectLs, function(x) {
     apply(X=x[,2:4], 2, mysml::mnci)
@@ -809,7 +806,7 @@ According to the detailed results, between 2 percent (5-fold CV, threshold proba
 ## Package documentation of our prediction model
 
 Our prediction model for the outcome new onset of alcohol use disorder is published as part of this predictAUDPsyCoLaus R package. When you installed and loaded this predictAUDPsyCoLaus R package, run the following code, to see the detailed documentation of the prediction model:
-```{r echo=TRUE, eval = FALSE}
+```{r chunk28, echo=TRUE, eval = FALSE}
 # Load the package
 library(predictAUDPsyCoLaus)
 # Call the help page for the prediction model
@@ -821,7 +818,7 @@ cbind(coefficients(predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel))
 ## Applying our prediction model to an independent dataset
 
 Our prediction model can be applied for external validation purposes, by running the 'predict' command in R. Note that we have removed all of the original data from the object that is produced by fitting the logistic regression model to the original data.
-```{r echo=TRUE, eval = FALSE}
+```{r chunk29, echo=TRUE, eval = FALSE}
 # External data with the same 8 predictors, which need to get the same variable names assigned to them, must be used as 'newdata' argument. The argument 'type', when set to 'response', will return the predicted probability of developing the outcome.
 predict(object=PsyCoLausAUDpredictionModel, newdata = ..., type="response")
 ```
@@ -829,7 +826,7 @@ predict(object=PsyCoLausAUDpredictionModel, newdata = ..., type="response")
 ## Prediction model fit to the original data
 
 This is the result of the fitted logistic regression model to the original data (*N* = 3654).
-```{r echo=TRUE, eval = FALSE}
+```{r chunk29.1, echo=TRUE, eval = FALSE}
                   Estimate Std. Error     z value     Pr(>|z|)
 (Intercept)    -5.35428124 0.45327878 -11.8123358 3.370649e-32
 Sex            -0.20722125 0.21757247  -0.9524240 3.408820e-01
@@ -846,7 +843,7 @@ inactivity      0.10690985 0.20812437   0.5136825 6.074740e-01
 
 This is the last among four measures and plots, which Van Calster et al. (2024) regard as being essential in reporting a clinical prediction model.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk30, echo=TRUE, eval = FALSE}
 # Apparent = The full dataset is used for developing and for 'validating' the prediction model.
 pApparent <- glm(newAud ~ ., family = binomial(link="logit"), data=d)$fitted.values
 # probDistr: Probability distribution
@@ -856,8 +853,8 @@ p <-
 ggplot(data=probDistr, aes(x=newAud, y=p_app)) +
     geom_violin() +
     geom_jitter(height = 0, width = 0.1) +
-    xlab(label="New onset alcohol use disorder (DSM-5)") +
-    ylab(label="Apparent predicted probabilities") +
+    xlab(label="New-onset alcohol use disorder (DSM-5)") +
+    ylab(label="Apparent predicted probability") +
     theme(
         panel.background = element_blank(),
         axis.text.x=element_text(size=16),
@@ -872,7 +869,7 @@ ggplot(data=probDistr, aes(x=newAud, y=p_app)) +
 
 Alternatively, this visualization may also be regarded as helpful. It shows the same probability distribution in a different way. The two vertical dashed lines show the threshold probabilities of 1 and of 5 percent. If 1 percent was selected, a lot of false positives (grey and at the right of the 1 percent dashed line) would get offered treatment. Whereas, if 5 percent was selected as threshold, all observed cases (red) between the two dashed lines would be missed, but also way fewer false positives (grey and at the right side of 5 percent dashed line) would get offered treatment.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk31, echo=TRUE, eval = FALSE}
 # Display probability distribution in an alternative way.
 probDistrOrdered <- probDistr[order(probDistr$newAud),]
 probDistrOrdered$id <- 1:nrow(probDistrOrdered)
@@ -881,8 +878,8 @@ p <-
     geom_point() +
     geom_vline(xintercept = c(.01, .05), linetype = "dashed") +
     scale_color_manual(values=c("0"="gray", "1"="red")) +
-    xlab(label="Apparent predicted probabilities") +
-    ylab(label="Study sample (N = 3654)") +
+    xlab(label="Apparent predicted probability") +
+    ylab(label="Study sample (N = 3,654)") +
     
     theme(
         panel.background = element_blank(),
@@ -901,13 +898,21 @@ p <-
 
 All necessary technical information, regarding the above vignette of this R package predictAUDPsyCoLaus.
 
-```{r echo=TRUE, eval = FALSE}
+```{r chunk32, echo=TRUE, eval = FALSE}
+# sessionInfo() # Today: 2025-05-22
 R version 4.4.0 (2024-04-24)
 Platform: x86_64-apple-darwin20
 Running under: macOS Sonoma 14.2.1
 
+Matrix products: default
+BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib 
+LAPACK: /Library/Frameworks/R.framework/Versions/4.4-x86_64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.0
+
 locale:
 [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+time zone: Europe/Zurich
+tzcode source: internal
 
 attached base packages:
 [1] stats     graphics  grDevices utils     datasets  methods   base     
@@ -915,50 +920,51 @@ attached base packages:
 other attached packages:
  [1] predictAUDPsyCoLaus_0.1.0  modgo_1.0.1               
  [3] samplesizedev_1.0.0.0      precrec_0.14.2            
- [5] rms_6.8-1                  Hmisc_5.2-2               
+ [5] rms_8.0-0                  Hmisc_5.2-3               
  [7] ClinicalUtilityRecal_0.1.0 pminternal_0.0.1          
- [9] pmcalibration_0.1.0        gridExtra_2.3             
-[11] cowplot_1.1.3              ggplot2_3.5.1             
+ [9] pmcalibration_0.2.0        gridExtra_2.3             
+[11] cowplot_1.1.3              ggplot2_3.5.2             
 [13] mysml_0.1.0                ranger_0.17.0             
 [15] tidyr_1.3.1                magrittr_2.0.3            
 [17] dplyr_1.1.4               
 
 loaded via a namespace (and not attached):
-  [1] mnormt_2.1.1         Rdpack_2.6.2         pbapply_1.7-2       
-  [4] pROC_1.18.5          sandwich_3.1-0       rlang_1.1.4         
-  [7] multcomp_1.4-25      polspline_1.1.25     compiler_4.4.0      
+  [1] mnormt_2.1.1         Rdpack_2.6.4         pbapply_1.7-2       
+  [4] pROC_1.18.5          sandwich_3.1-1       rlang_1.1.6         
+  [7] multcomp_1.4-28      polspline_1.1.25     compiler_4.4.0      
  [10] vctrs_0.6.5          reshape2_1.4.4       RcppZiggurat_0.1.6  
- [13] quantreg_5.98        stringr_1.5.1        pkgconfig_2.0.3     
+ [13] quantreg_6.1         stringr_1.5.1        pkgconfig_2.0.3     
  [16] fastmap_1.2.0        backports_1.5.0      rmarkdown_2.29      
- [19] prodlim_2024.06.25   nloptr_2.1.1         MatrixModels_0.5-3  
- [22] purrr_1.0.2          Rfast_2.1.0          xfun_0.50           
- [25] recipes_1.1.0        psych_2.4.6.26       parallel_4.4.0      
- [28] cluster_2.1.6        R6_2.5.1             stringi_1.8.4       
- [31] parallelly_1.41.0    rpart_4.1.23         lubridate_1.9.4     
- [34] Rcpp_1.0.14          iterators_1.0.14     knitr_1.49          
- [37] future.apply_1.11.3  zoo_1.8-12           base64enc_0.1-3     
- [40] Matrix_1.7-0         splines_4.4.0        nnet_7.3-19         
- [43] timechange_0.3.0     tidyselect_1.2.1     yaml_2.3.10         
- [46] rstudioapi_0.17.1    timeDate_4041.110    doParallel_1.0.17   
- [49] codetools_0.2-20     listenv_0.9.1        lattice_0.22-6      
- [52] tibble_3.2.1         plyr_1.8.9           GLDEX_2.0.0.9.3     
- [55] withr_3.0.2          evaluate_1.0.3       foreign_0.8-86      
- [58] future_1.34.0        survival_3.5-8       RcppParallel_5.1.8  
- [61] fitdistrplus_1.1-8   pillar_1.10.1        rsconnect_0.8.26    
- [64] checkmate_2.3.2      foreach_1.5.2        stats4_4.4.0        
- [67] generics_0.1.3       munsell_0.5.1        scales_1.3.0        
- [70] globals_0.16.3       class_7.3-22         CalibratR_0.1.2     
- [73] glue_1.8.0           tools_4.4.0          data.table_1.16.4   
- [76] SparseM_1.84         ModelMetrics_1.2.2.2 gower_1.0.2         
- [79] forcats_1.0.0        mvtnorm_1.2-5        grid_4.4.0          
- [82] rbibutils_2.3        wesanderson_0.3.7    ipred_0.9-15        
- [85] colorspace_2.1-1     patchwork_1.2.0      nlme_3.1-164        
- [88] RNGforGPD_1.1.0      htmlTable_2.4.3      spacefillr_0.3.3    
- [91] Formula_1.2-5        cli_3.6.3            gp_1.1              
- [94] lava_1.8.1           corpcor_1.6.10       ggcorrplot_0.1.4.1  
- [97] gtable_0.3.6         digest_0.6.37        caret_7.0-1         
-[100] TH.data_1.1-2        htmlwidgets_1.6.4    htmltools_0.5.8.1   
-[103] lifecycle_1.0.4      hardhat_1.4.0        MASS_7.3-60.2
+ [19] prodlim_2025.04.28   nloptr_2.2.1         MatrixModels_0.5-4  
+ [22] purrr_1.0.4          Rfast_2.1.0          xfun_0.52           
+ [25] recipes_1.3.0        psych_2.4.6.26       parallel_4.4.0      
+ [28] cluster_2.1.6        R6_2.6.1             stringi_1.8.7       
+ [31] RColorBrewer_1.1-3   parallelly_1.44.0    rpart_4.1.23        
+ [34] lubridate_1.9.4      Rcpp_1.0.14          iterators_1.0.14    
+ [37] knitr_1.50           future.apply_1.11.3  zoo_1.8-14          
+ [40] base64enc_0.1-3      Matrix_1.7-0         splines_4.4.0       
+ [43] nnet_7.3-19          timechange_0.3.0     tidyselect_1.2.1    
+ [46] rstudioapi_0.17.1    dichromat_2.0-0.1    yaml_2.3.10         
+ [49] timeDate_4041.110    doParallel_1.0.17    codetools_0.2-20    
+ [52] listenv_0.9.1        lattice_0.22-6       tibble_3.2.1        
+ [55] plyr_1.8.9           GLDEX_2.0.0.9.3      withr_3.0.2         
+ [58] evaluate_1.0.3       foreign_0.8-86       future_1.49.0       
+ [61] survival_3.5-8       RcppParallel_5.1.10  fitdistrplus_1.2-2  
+ [64] pillar_1.10.2        rsconnect_0.8.26     checkmate_2.3.2     
+ [67] foreach_1.5.2        stats4_4.4.0         generics_0.1.4      
+ [70] scales_1.4.0         globals_0.18.0       class_7.3-22        
+ [73] CalibratR_0.1.2      glue_1.8.0           tools_4.4.0         
+ [76] data.table_1.17.2    SparseM_1.84-2       ModelMetrics_1.2.2.2
+ [79] gower_1.0.2          forcats_1.0.0        mvtnorm_1.3-3       
+ [82] grid_4.4.0           rbibutils_2.3        wesanderson_0.3.7   
+ [85] ipred_0.9-15         colorspace_2.1-1     patchwork_1.3.0     
+ [88] nlme_3.1-164         RNGforGPD_1.1.0      htmlTable_2.4.3     
+ [91] spacefillr_0.3.3     Formula_1.2-5        cli_3.6.5           
+ [94] gp_1.1               lava_1.8.1           corpcor_1.6.10      
+ [97] ggcorrplot_0.1.4.1   gtable_0.3.6         digest_0.6.37       
+[100] caret_7.0-1          TH.data_1.1-3        htmlwidgets_1.6.4   
+[103] farver_2.1.2         htmltools_0.5.8.1    lifecycle_1.0.4     
+[106] hardhat_1.4.1        MASS_7.3-60.2
 ```
 
 **References**
