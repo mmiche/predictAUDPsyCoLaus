@@ -288,7 +288,7 @@ The results from the main analysis consist in clinical utility, calibration, and
 
 **Note**. All of the following results refer solely to the logistic regression model, because we did not use the random forest model as a competitor to logistic regression. Detailed reasons can be found in the publication and the other supplementary document of this publication.
 
-There exists an alternative to k-fold cross-validation, which makes use of the full data. This bootstrapping alternative is described in Box 1 of Riley and Collins (2023), and in Box 2 of Collins et al. (2024). The procedure is implemented in the R package pminternal (Rhodes, Version 0.0.1). The main advantage of this approach is that the user receives an estimate of the overoptimism of the apparent prediction performance ('apparent' performance is the results, when using the same dataset for training as well as for testing the prediction model).
+There exists an alternative to k-fold cross-validation, which makes use of the full data. This bootstrapping alternative is described in Box 1 of Riley and Collins (2023), and in Box 2 of Collins et al. (2024). The procedure is implemented in the R package pminternal (Rhodes, Version 0.1.1). The main advantage of this approach is that the user receives an estimate of the overoptimism of the apparent prediction performance ('apparent' performance is the results, when using the same dataset for training as well as for testing the prediction model).
 
 ```{r chunk10, echo=TRUE, eval = FALSE}
 # Take the total dataset, then fit a logistic regression model to it.
@@ -302,10 +302,16 @@ end <- Sys.time()
 difftime(end, start) # Between 2 and 3 Min.
 val
 # Output in R console (based on the original data)
-             C    Brier Intercept Slope   Eavg    E50    E90  Emax    ECI
-Apparent  0.78  0.02887      0.00 1.000 0.0064 0.0042 0.0138 0.077 0.0112
-Optimism  0.02 -0.00062      0.17 0.061 0.0018 0.0011 0.0059 0.049 0.0093
-Corrected 0.76  0.02949     -0.17 0.939 0.0046 0.0031 0.0079 0.028 0.0019
+          apparent optimism corrected   n
+C           0.7811  0.01990    0.7612 500
+Brier       0.0289 -0.00062    0.0295 500
+Intercept   0.0000  0.17096   -0.1710 500
+Slope       1.0000  0.06090    0.9391 500
+Eavg        0.0064  0.00180    0.0046 500
+E50         0.0042  0.00112    0.0031 500
+E90         0.0138  0.00588    0.0079 500
+Emax        0.0769  0.04864    0.0282 500
+ECI         0.0112  0.00934    0.0019 500
 ```
 
 The results show C, which is a measure of discrimination, whereas the remaining measures all belong the the class of calibration measures. Since our main interest is 'net benefit', we modified the function 'boot_optimism' of the package pminternal. The modified function 'boot_optimismDCA' is part of this predictAUDPsyCoLaus R package.
@@ -921,7 +927,7 @@ other attached packages:
  [1] predictAUDPsyCoLaus_0.1.0  modgo_1.0.1               
  [3] samplesizedev_1.0.0.0      precrec_0.14.2            
  [5] rms_8.0-0                  Hmisc_5.2-3               
- [7] ClinicalUtilityRecal_0.1.0 pminternal_0.0.1          
+ [7] ClinicalUtilityRecal_0.1.0 pminternal_0.1.1          
  [9] pmcalibration_0.2.0        gridExtra_2.3             
 [11] cowplot_1.1.3              ggplot2_3.5.2             
 [13] mysml_0.1.0                ranger_0.17.0             
@@ -944,27 +950,26 @@ loaded via a namespace (and not attached):
  [37] knitr_1.50           future.apply_1.11.3  zoo_1.8-14          
  [40] base64enc_0.1-3      Matrix_1.7-0         splines_4.4.0       
  [43] nnet_7.3-19          timechange_0.3.0     tidyselect_1.2.1    
- [46] rstudioapi_0.17.1    dichromat_2.0-0.1    yaml_2.3.10         
- [49] timeDate_4041.110    doParallel_1.0.17    codetools_0.2-20    
- [52] listenv_0.9.1        lattice_0.22-6       tibble_3.2.1        
- [55] plyr_1.8.9           GLDEX_2.0.0.9.3      withr_3.0.2         
- [58] evaluate_1.0.3       foreign_0.8-86       future_1.49.0       
- [61] survival_3.5-8       RcppParallel_5.1.10  fitdistrplus_1.2-2  
- [64] pillar_1.10.2        rsconnect_0.8.26     checkmate_2.3.2     
- [67] foreach_1.5.2        stats4_4.4.0         generics_0.1.4      
- [70] scales_1.4.0         globals_0.18.0       class_7.3-22        
- [73] CalibratR_0.1.2      glue_1.8.0           tools_4.4.0         
- [76] data.table_1.17.2    SparseM_1.84-2       ModelMetrics_1.2.2.2
- [79] gower_1.0.2          forcats_1.0.0        mvtnorm_1.3-3       
- [82] grid_4.4.0           rbibutils_2.3        wesanderson_0.3.7   
- [85] ipred_0.9-15         colorspace_2.1-1     patchwork_1.3.0     
- [88] nlme_3.1-164         RNGforGPD_1.1.0      htmlTable_2.4.3     
- [91] spacefillr_0.3.3     Formula_1.2-5        cli_3.6.5           
- [94] gp_1.1               lava_1.8.1           corpcor_1.6.10      
- [97] ggcorrplot_0.1.4.1   gtable_0.3.6         digest_0.6.37       
-[100] caret_7.0-1          TH.data_1.1-3        htmlwidgets_1.6.4   
-[103] farver_2.1.2         htmltools_0.5.8.1    lifecycle_1.0.4     
-[106] hardhat_1.4.1        MASS_7.3-60.2
+ [46] rstudioapi_0.17.1    dichromat_2.0-0.1    timeDate_4041.110   
+ [49] doParallel_1.0.17    codetools_0.2-20     listenv_0.9.1       
+ [52] lattice_0.22-6       tibble_3.2.1         plyr_1.8.9          
+ [55] GLDEX_2.0.0.9.3      withr_3.0.2          evaluate_1.0.3      
+ [58] foreign_0.8-86       future_1.49.0        survival_3.5-8      
+ [61] RcppParallel_5.1.10  fitdistrplus_1.2-2   pillar_1.10.2       
+ [64] checkmate_2.3.2      foreach_1.5.2        stats4_4.4.0        
+ [67] generics_0.1.4       scales_1.4.0         globals_0.18.0      
+ [70] class_7.3-22         CalibratR_0.1.2      glue_1.8.0          
+ [73] tools_4.4.0          data.table_1.17.2    SparseM_1.84-2      
+ [76] ModelMetrics_1.2.2.2 gower_1.0.2          forcats_1.0.0       
+ [79] mvtnorm_1.3-3        grid_4.4.0           rbibutils_2.3       
+ [82] wesanderson_0.3.7    ipred_0.9-15         colorspace_2.1-1    
+ [85] patchwork_1.3.0      nlme_3.1-164         RNGforGPD_1.1.0     
+ [88] htmlTable_2.4.3      spacefillr_0.3.3     Formula_1.2-5       
+ [91] cli_3.6.5            gp_1.1               lava_1.8.1          
+ [94] corpcor_1.6.10       ggcorrplot_0.1.4.1   gtable_0.3.6        
+ [97] digest_0.6.37        caret_7.0-1          TH.data_1.1-3       
+[100] htmlwidgets_1.6.4    farver_2.1.2         htmltools_0.5.8.1   
+[103] lifecycle_1.0.4      hardhat_1.4.1        MASS_7.3-60.2
 ```
 
 **References**

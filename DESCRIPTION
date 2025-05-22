@@ -2,7 +2,7 @@ Package: predictAUDPsyCoLaus
 Type: Package
 Title: predictAUDPsyCoLaus
 Version: 0.1.0
-Date/Publication: 2025-03-27
+Date/Publication: 2025-05-22
 Author: Marcel Miché
 Maintainer: Marcel Miché <marcel.miche.predictme@gmail.com>
 Description: Provide full transparency of analysis code for a clinical prediction model of new onset alcohol use disorder.
