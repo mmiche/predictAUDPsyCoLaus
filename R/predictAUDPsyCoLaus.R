@@ -9,8 +9,6 @@
 #' @importFrom Rdpack reprompt
 #'
 #' @name predictAUDPsyCoLaus
-NULL
-
 #'
 #' @references
 #'
@@ -54,4 +52,6 @@ NULL
 #'
 #' \insertRef{modgo2022}{predictAUDPsyCoLaus}
 #'
+NULL
+
 "_PACKAGE"
