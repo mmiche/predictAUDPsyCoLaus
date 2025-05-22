@@ -31,7 +31,7 @@ This function is a modification of the function \code{classification_stability} 
 # section Classification stability.
 }
 \references{
-\insertRef{pminternal2024}{predictAUDPsyCoLaus}
+\insertRef{pminternal2025}{predictAUDPsyCoLaus}
 }
 \author{
 Stephen Rhodes (see \strong{Details})

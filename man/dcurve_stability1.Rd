@@ -32,7 +32,7 @@ This function is a modification of the function \code{dcurve_stability} of the R
 # section Decision curve stability.
 }
 \references{
-\insertRef{pminternal2024}{predictAUDPsyCoLaus}
+\insertRef{pminternal2025}{predictAUDPsyCoLaus}
 }
 \author{
 Stephen Rhodes (see \strong{Details})

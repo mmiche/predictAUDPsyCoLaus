@@ -34,7 +34,7 @@ This function is a modification of the function \code{prediction_stability} of t
 # section Prediction stability.
 }
 \references{
-\insertRef{pminternal2024}{predictAUDPsyCoLaus}
+\insertRef{pminternal2025}{predictAUDPsyCoLaus}
 }
 \author{
 Stephen Rhodes (see \strong{Details})

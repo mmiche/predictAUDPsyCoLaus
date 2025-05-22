@@ -26,7 +26,7 @@
 #
 #' @references
 #'
-#' \insertRef{pminternal2024}{predictAUDPsyCoLaus}
+#' \insertRef{pminternal2025}{predictAUDPsyCoLaus}
 #
 #' @export
 #

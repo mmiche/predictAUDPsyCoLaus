@@ -28,7 +28,7 @@ This function is a modification of the function \code{mape_stability} of the R p
 # section MAPE stability (MAPE = mean absolute prediction error).
 }
 \references{
-\insertRef{pminternal2024}{predictAUDPsyCoLaus}
+\insertRef{pminternal2025}{predictAUDPsyCoLaus}
 }
 \author{
 Stephen Rhodes (see \strong{Details})

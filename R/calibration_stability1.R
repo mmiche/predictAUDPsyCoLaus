@@ -25,9 +25,9 @@
 #
 #' @references
 #'
-#' \insertRef{pmcalibration2023}{predictAUDPsyCoLaus}
+#' \insertRef{pmcalibration2025}{predictAUDPsyCoLaus}
 #'
-#' \insertRef{pminternal2024}{predictAUDPsyCoLaus}
+#' \insertRef{pminternal2025}{predictAUDPsyCoLaus}
 #'
 #' \insertRef{riley2023stability}{predictAUDPsyCoLaus}
 #'
