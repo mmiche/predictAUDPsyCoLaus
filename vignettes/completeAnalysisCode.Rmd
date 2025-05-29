@@ -67,14 +67,14 @@ The original study data cannot be published, due to data privacy laws. The dummy
 set.seed(1)
 # 5-fold CV = 5 80/20 splits; 20 seeds = 20 repetitions of 5 fold = 100 final test results.
 seeds <- sample(1:10e6, size=20)
-cvLs <- mysml::myRepeatedkFoldcv(data=d, outcome="newAud", folds = 5, stratify = TRUE, seeds=seeds)
+cvLs <- mysml::myRepeatedkFoldcv(data=d, outcome="firstAud", folds = 5, stratify = TRUE, seeds=seeds)
 
 TrainLs <- cvLs$TrainLs
 TestLs <- cvLs$TestLs
 
-# Check stratification: Frequency of outcome (newAud) being closely around 3.15 percent, both in the training and in the test subsets of the total sample.
-unique(unlist(lapply(TrainLs, FUN=function(x) mean(x$newAud))))
-unique(unlist(lapply(TestLs, FUN=function(x) mean(x$newAud))))
+# Check stratification: Frequency of outcome (firstAud) being closely around 3.15 percent, both in the training and in the test subsets of the total sample.
+unique(unlist(lapply(TrainLs, FUN=function(x) mean(x$firstAud))))
+unique(unlist(lapply(TestLs, FUN=function(x) mean(x$firstAud))))
 ```
 
 ## Repeated k-fold cross-validation - Run
@@ -83,8 +83,8 @@ unique(unlist(lapply(TestLs, FUN=function(x) mean(x$newAud))))
 # Make empty named list:
 predProbsLs <- sapply(c("logreg", "rf"),function(x) NULL) #
 preds <- c("Sex", "iSES15", "MARIE", "MDDPD2", "ADAPU2", "Week_ALC_type6", "smokingstatus", "inactivity")
-fmla <- formula(paste0("newAud ~ ", paste0(preds, collapse = "+")))
-fmla.f <- formula(paste0("factor(newAud) ~ ", paste0(preds, collapse = "+")))
+fmla <- formula(paste0("firstAud ~ ", paste0(preds, collapse = "+")))
+fmla.f <- formula(paste0("factor(firstAud) ~ ", paste0(preds, collapse = "+")))
 startTime <- Sys.time() # Takes approx. 30-40 seconds.
 for(m in 1:length(TrainLs)) {
     # Select training and test subset
@@ -93,13 +93,13 @@ for(m in 1:length(TrainLs)) {
     
     # Logistic regression
     # -------------------
-    logreg_m <- applyLogreg(dataTrain=Train.m, dataTest=Test.m, frmla = fmla, outcome = "newAud")
+    logreg_m <- applyLogreg(dataTrain=Train.m, dataTest=Test.m, frmla = fmla, outcome = "firstAud")
     predProbsLs[["logreg"]][[m]] <- logreg_m$TestCV
     
     # Random forest
     # -------------
     set.seed(1)
-    rndmFrst_m <- applyRandomForest(dataTrain=Train.m, dataTest=Test.m, frmla.f = fmla.f, outcome = "newAud")
+    rndmFrst_m <- applyRandomForest(dataTrain=Train.m, dataTest=Test.m, frmla.f = fmla.f, outcome = "firstAud")
     predProbsLs[["rf"]][[m]] <- rndmFrst_m$TestCV
 }
 endTime <- Sys.time()
@@ -292,7 +292,7 @@ There exists an alternative to k-fold cross-validation, which makes use of the f
 
 ```{r chunk10, echo=TRUE, eval = FALSE}
 # Take the total dataset, then fit a logistic regression model to it.
-mod <- glm(newAud ~ ., family = binomial(link="logit"), data = d)
+mod <- glm(firstAud ~ ., family = binomial(link="logit"), data = d)
 # Next, run the function validate from the pminternal R package.
 start <- Sys.time()
 set.seed(1)
@@ -320,7 +320,7 @@ The results show C, which is a measure of discrimination, whereas the remaining 
 # Newly developed, on the basis of the boot_optimism function of the pminternal R package: Compute optimism corrected net benefit results.
 # Takes approx. 30 seconds.
 set.seed(1)
-dcaCorrected <- boot_optimismDCA(data=d, outcome = "newAud", B=500, thresholds = seq(.01, .05, by=.01))
+dcaCorrected <- boot_optimismDCA(data=d, outcome = "firstAud", B=500, thresholds = seq(.01, .05, by=.01))
 round(dcaCorrected, digits=4)
 # Output in R console (based on the original data)
           pt0.01 pt0.02 pt0.03 pt0.04 pt0.05
@@ -354,7 +354,7 @@ Next, after knowing that we ought to have a total sample size of 4438, instead o
 
 ```{r chunk13, echo=TRUE, eval = FALSE}
 # Binary variables of the dataset
-binary_vars <- c("newAud", "ADAPU2", "inactivity", "MDDPD2", "Sex", "MARIE")
+binary_vars <- c("firstAud", "ADAPU2", "inactivity", "MDDPD2", "Sex", "MARIE")
 # Number of repetitions of the mimicking simulations.
 modgoReps <- 500
 # Run the mimicking simulations. (Takes only a few seconds.)
@@ -371,9 +371,9 @@ From that simulated data, we randomly sampled a dataset of size 4438. We repeate
 
 ```{r chunk14, echo=TRUE, eval = FALSE}
 # pwts: prediction weights
-pwts <- coefficients(glm(newAud ~ ., family = binomial(link="logit"), data=d))
-idxWithOutcome <- which(dSim$newAud == 1)
-idxWithoutOutcome <- which(dSim$newAud == 0)
+pwts <- coefficients(glm(firstAud ~ ., family = binomial(link="logit"), data=d))
+idxWithOutcome <- which(dSim$firstAud == 1)
+idxWithoutOutcome <- which(dSim$firstAud == 0)
 set.seed(9)
 seeds <- sample(1:1e+08, size=5000)
 # wtsDiff: difference between the prediction weights
@@ -385,7 +385,7 @@ for(i in seeds) {
     set.seed(i)
     idxSelect.y0 <- sample(idxWithoutOutcome, size=4298)
     d_i <- dSim[c(idxSelect.y1, idxSelect.y0),]
-    mod_i <- glm(newAud ~ ., family = binomial(link="logit"), data=d_i)
+    mod_i <- glm(firstAud ~ ., family = binomial(link="logit"), data=d_i)
     # Prediction weights
     pwts_i <- coefficients(mod_i)
     wtsDiff <- c(wtsDiff, sum(abs(pwts_i - pwts)))
@@ -418,7 +418,7 @@ In order to visualize model instability, the output of the function validate (fr
 
 ```{r chunk15, echo=TRUE, eval = FALSE}
 # Take the total mimicked dataset (d4438), then fit a logistic regression model to it.
-mod4438 <- glm(newAud ~ ., family = binomial(link="logit"), data = d4438)
+mod4438 <- glm(firstAud ~ ., family = binomial(link="logit"), data = d4438)
 # Next, run the function validate from the pminternal R package.
 start <- Sys.time() # Takes between 2 and 3 Min.
 set.seed(1)
@@ -554,9 +554,9 @@ p <-
 thresholds <- seq(0, .05, by=.01)
 curves <- dcurve_stability1(x=val1, thresholds = thresholds)
 # d must have 3654 rows for val1, or 4438 rows for val2.
-mod <- glm(newAud ~ ., family=binomial(link="logit"), data=d)
+mod <- glm(firstAud ~ ., family=binomial(link="logit"), data=d)
 # Prepare addition of treat none and treat all visualizations:
-curveOrigLs <- mysml:::dca(inputDataset = data.frame(y=d$newAud, p=mod$fitted.values),
+curveOrigLs <- mysml:::dca(inputDataset = data.frame(y=d$firstAud, p=mod$fitted.values),
                            truth = "y", prob = "p", selectedThresholds = thresholds)
 curveOrigLs$plotTbl$label <- as.character(curveOrigLs$plotTbl$label)
 dcurveOrigTreatAll <- curveOrigLs$plotTbl[curveOrigLs$plotTbl$label=="Treat all",]
@@ -678,10 +678,10 @@ In order to use this alternative approach, we modified the function boot_optimis
 
 ```{r chunk23, echo=TRUE, eval = FALSE}
 set.seed(1)
-bootDf <- boot_optimism1(data=d, outcome = "newAud", B=500)
+bootDf <- boot_optimism1(data=d, outcome = "firstAud", B=500)
 dim(bootDf)
 colnames(bootDf) <- c(paste0("p_orig00", 1:9), paste0("p_orig0", 10:99), paste0("p_orig", 100:500))
-bootDf$y <- d$newAud
+bootDf$y <- d$firstAud
 ```
 
 ```{r chunk24, echo=TRUE, eval = FALSE}
@@ -851,12 +851,12 @@ This is the last among four measures and plots, which Van Calster et al. (2024) 
 
 ```{r chunk30, echo=TRUE, eval = FALSE}
 # Apparent = The full dataset is used for developing and for 'validating' the prediction model.
-pApparent <- glm(newAud ~ ., family = binomial(link="logit"), data=d)$fitted.values
+pApparent <- glm(firstAud ~ ., family = binomial(link="logit"), data=d)$fitted.values
 # probDistr: Probability distribution
-probDistr <- data.frame(newAud=as.factor(d$newAud), p_app=pApparent)
+probDistr <- data.frame(firstAud=as.factor(d$firstAud), p_app=pApparent)
 # Display the probability distribution
 p <- 
-ggplot(data=probDistr, aes(x=newAud, y=p_app)) +
+ggplot(data=probDistr, aes(x=firstAud, y=p_app)) +
     geom_violin() +
     geom_jitter(height = 0, width = 0.1) +
     xlab(label="New-onset alcohol use disorder (DSM-5)") +
@@ -877,10 +877,10 @@ Alternatively, this visualization may also be regarded as helpful. It shows the 
 
 ```{r chunk31, echo=TRUE, eval = FALSE}
 # Display probability distribution in an alternative way.
-probDistrOrdered <- probDistr[order(probDistr$newAud),]
+probDistrOrdered <- probDistr[order(probDistr$firstAud),]
 probDistrOrdered$id <- 1:nrow(probDistrOrdered)
 p <- 
-    ggplot(data=probDistrOrdered, aes(x=p_app, y=id, col=newAud)) +
+    ggplot(data=probDistrOrdered, aes(x=p_app, y=id, col=firstAud)) +
     geom_point() +
     geom_vline(xintercept = c(.01, .05), linetype = "dashed") +
     scale_color_manual(values=c("0"="gray", "1"="red")) +

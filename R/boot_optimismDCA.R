@@ -6,7 +6,7 @@
 #
 #' @param data Dataset which provides the required columns (see \strong{Details}).
 #
-#' @param outcome Character string. Name of the outcome variable, in this study it was 'newAud' (new onset of alcohol use disorder).
+#' @param outcome Character string. Name of the outcome variable, in this study it was 'firstAud' (first onset of alcohol use disorder).
 #
 #' @param thresholds Vector with numeric values. Selected range of reasonable threshold probabilities, we used: .01, .02, .03, .04, and .05.
 #

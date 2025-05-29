@@ -6,7 +6,7 @@
 #
 #' @param data Dataset which provides the required columns (see \strong{Details}).
 #
-#' @param outcome Character string. Name of the outcome variable, in this study it was 'newAud' (new onset of alcohol use disorder).
+#' @param outcome Character string. Name of the outcome variable, in this study it was 'firstAud' (first onset of alcohol use disorder).
 #
 #' @details Dataset must contain the outcome and all eight predictor variables. This function is a modification of the function \code{boot_optimism} of the R package \code{pminternal}.
 #' Marcel Miché modified the original code. Enter predictAUDPsyCoLausDev::boot_optimism1 in the R console to see the raw code, including the code that I outcommented.

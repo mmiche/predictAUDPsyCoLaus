@@ -9,7 +9,7 @@ boot_optimism1(data, outcome = "newAud", B = 200)
 \arguments{
 \item{data}{Dataset which provides the required columns (see \strong{Details}).}
 
-\item{outcome}{Character string. Name of the outcome variable, in this study it was 'newAud' (new onset of alcohol use disorder).}
+\item{outcome}{Character string. Name of the outcome variable, in this study it was 'firstAud' (first onset of alcohol use disorder).}
 
 \item{B}{number of bootstrap resamples to run (we set B = 500).}
 }

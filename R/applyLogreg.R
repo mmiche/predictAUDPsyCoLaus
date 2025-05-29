@@ -8,7 +8,7 @@
 #
 #' @param frmla An object of the class \code{formula}, used for the logistic regression model.
 #
-#' @param outcome Character string. Name of the outcome variable, in this study it was 'newAud' (new onset of alcohol use disorder).
+#' @param outcome Character string. Name of the outcome variable, in this study it was 'firstAud' (first onset of alcohol use disorder).
 #
 #' @return a list with two data.frames as elements (names: ApparentCV, TestCV), each data.frame having three columns:
 #' \enumerate{
