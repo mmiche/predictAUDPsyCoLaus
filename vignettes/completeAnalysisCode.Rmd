@@ -18,14 +18,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Complete analysis code
 
-This vignette accompanies the R package predictAUDPsyCoLaus, which serves as supplementary material to a publication. In that publication, we developed and evaluated a clinical prediction model of new onset alcohol use disorder among adults, from a representative general community sample, from Lausanne, Switzerland.
+This vignette accompanies the R package predictAUDPsyCoLaus, which serves as supplementary material to a publication. In that publication, we developed and evaluated a clinical prediction model of first onset alcohol use disorder among adults, from a representative general community sample, from Lausanne, Switzerland.
 
 ## Dowload of this predictAUDPsyCoLaus R package
 
 This predictAUDPsyCoLaus R package can be downloaded from GitHub, e.g., by running these lines of code in R:
 ```{r chunk00, echo=TRUE, eval = FALSE}
-# Note: The R package devtools must have been installed, in order for this line of code to work:
-devtools::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
+# Note: The R package 'remotes' must have been installed, in order for this line of code to work:
+remotes::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
                       dependencies = "Imports", build_vignettes = TRUE)
 ```
 
@@ -33,27 +33,27 @@ devtools::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
 
 For installation details of the following packages, e.g., to copy and paste package installation code, see **README Info** on the [predictAUDPsyCoLaus GitHub page](https://github.com/mmiche/predictAUDPsyCoLaus).
 
-### Packages that will automatically be installed:
+### Packages that will automatically be installed, when installing 'predictAUDPsyCoLaus':
 
 ```{r chunk001, echo=TRUE, eval = FALSE}
 library(dplyr) # version 1.1.4 (Download from CRAN)
 library(magrittr) # version 2.0.3 (Download from CRAN)
 library(tidyr) # version 1.3.1 (Download from CRAN)
 library(ranger) # version 0.17.0 (Download from CRAN)
-# https://github.com/mmiche/mysml   (Download code - copy paste from this URL)
+# https://github.com/mmiche/mysml
 library(mysml) # version 0.1.0 (Download from GitHub)
 library(ggplot2) # version 3.5.1 (Download from CRAN)
 library(cowplot) # version 1.1.3 (Download from CRAN)
 library(gridExtra) # version 2.3 (Download from CRAN)
 library(pmcalibration) # version 0.2.0 (Download from CRAN)
-# https://github.com/stephenrho/pminternal
-library(pminternal) # version 0.1.1
+# https://github.com/stephenrho/pminternal (newer version on GitHub)
+library(pminternal) # version 0.1.0 (Download from CRAN)
 library(ClinicalUtilityRecal) # version 0.1.0 (Download from CRAN)
 ```
 
 ### Packages that must be installed separately:
 
-These four packages are not obligatory for the use of this 'predictAUDPsyCoLaus' package. However, if all of the vignette code shall be executed, then these packages must be installed:
+These four packages are not obligatory for the use of the 'predictAUDPsyCoLaus' package. However, if all of the vignette code shall be executed, then these packages must also be installed:
 
 ```{r chunk002, echo=TRUE, eval = FALSE}
 library(rms) # version 8.0-0 (Download from CRAN)
