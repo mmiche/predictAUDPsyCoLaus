@@ -5,23 +5,24 @@ Version: 0.1.0
 Date/Publication: 2025-05-22
 Author: Marcel Miché
 Maintainer: Marcel Miché <marcel.miche.predictme@gmail.com>
-Description: Provide full transparency of analysis code for a clinical prediction model of new onset alcohol use disorder.
+Description: Provide full transparency of analysis code for a clinical prediction model of first onset alcohol use disorder.
 License: MIT + file LICENSE
 Encoding: UTF-8
-Imports: Rdpack,
-         rlang,
-         ClinicalUtilityRecal,
-         dplyr,
-         tidyr,
-         tibble,
-         ranger,
-         ggplot2,
-         magrittr,
-         mysml,
-         pbapply,
-         pmcalibration,
-         pminternal,
-         parallel
+Imports: Rdpack (>= 2.6.4),
+         rlang (>= 1.1.6),
+         ClinicalUtilityRecal (>= 0.1.0),
+         dplyr (>= 1.1.4),
+         tidyr (>= 1.3.1),
+         tibble (>= 3.2.1),
+         ranger (>= 0.17.0),
+         ggplot2 (>= 3.5.1),
+         magrittr (>= 2.0.3),
+         pbapply (>= 1.7-2),
+         pmcalibration (>= 0.2.0),
+         pminternal (>= 0.1.0),
+         parallel (>= 3.2.1),
+         mysml
+Remotes: mmiche/mysml
 RdMacros: Rdpack
 RoxygenNote: 7.3.2
 Depends: 
