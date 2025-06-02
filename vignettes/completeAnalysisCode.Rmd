@@ -29,6 +29,54 @@ remotes::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
                       dependencies = "Imports", build_vignettes = TRUE)
 ```
 
+# Published clinical prediction model
+
+## Package documentation of our prediction model
+
+Our prediction model for the outcome first onset of alcohol use disorder is published as part of this predictAUDPsyCoLaus R package. When you installed and loaded this predictAUDPsyCoLaus R package, run the following code, to see the detailed documentation of the prediction model:
+```{r chunk28, echo=TRUE, eval = FALSE}
+# Load the package
+library(predictAUDPsyCoLaus)
+# Call the help page for the prediction model
+?predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel
+# Display the prediction model's estimates in the R console:
+cbind(coefficients(predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel))
+```
+
+## Prediction model fit to the original data
+
+This is the result of the fitted logistic regression model to the original data (*N* = 3654).
+```{r chunk29.1, echo=TRUE, eval = FALSE}
+                  Estimate Std. Error     z value     Pr(>|z|)
+(Intercept)    -5.35428124 0.45327878 -11.8123358 3.370649e-32
+Sex            -0.20722125 0.21757247  -0.9524240 3.408820e-01
+iSES15          0.13956629 0.08237573   1.6942647 9.021500e-02
+MARIE          -0.32800250 0.20372011  -1.6100644 1.073838e-01
+MDDPD2          0.28228634 0.20861346   1.3531549 1.760061e-01
+ADAPU2         -0.04888268 0.29199210  -0.1674110 8.670467e-01
+Week_ALC_type6  0.64022013 0.07350741   8.7096002 3.049485e-18
+smokingstatus   0.60040634 0.12836060   4.6774972 2.903975e-06
+inactivity      0.10690985 0.20812437   0.5136825 6.074740e-01
+```
+
+## Applying our prediction model to an independent dataset
+
+### Use 'predict' command
+
+Our prediction model can be applied for external validation purposes, by running the 'predict' command in R. Note that we have removed all of the original data from the object that is produced by fitting the logistic regression model to the original data.
+```{r chunk29, echo=TRUE, eval = FALSE}
+# External data with the same 8 predictors, which need to get the same variable names assigned to them, must be used as 'newdata' argument. The argument 'type', when set to 'response', will return the predicted probability of developing the outcome.
+predict(object=PsyCoLausAUDpredictionModel, newdata = ..., type="response")
+```
+
+### Use 'Shiny App'
+
+Additionally, we provide the model as a 'Shiny App' (Chang et al., 2025): [predictAUDPsyCoLaus Shiny App](https://cepp-dp-chuv.shinyapps.io/cpm_aud_shinyapp/)
+
+# Prerequisites
+
+The following is **not relevant** for applying the prediction model. What follows, is the detailed documentation of all analysis code, in compliance with the full transparency demands of open science's good practice recommendations, e.g., Skubera et al. (2025).
+
 ## Load these R packages
 
 For installation details of the following packages, e.g., to copy and paste package installation code, see **README Info** on the [predictAUDPsyCoLaus GitHub page](https://github.com/mmiche/predictAUDPsyCoLaus).
@@ -36,19 +84,19 @@ For installation details of the following packages, e.g., to copy and paste pack
 ### Packages that will automatically be installed, when installing 'predictAUDPsyCoLaus':
 
 ```{r chunk001, echo=TRUE, eval = FALSE}
-library(dplyr) # version 1.1.4 (Download from CRAN)
-library(magrittr) # version 2.0.3 (Download from CRAN)
-library(tidyr) # version 1.3.1 (Download from CRAN)
-library(ranger) # version 0.17.0 (Download from CRAN)
-# https://github.com/mmiche/mysml
-library(mysml) # version 0.1.0 (Download from GitHub)
-library(ggplot2) # version 3.5.1 (Download from CRAN)
-library(cowplot) # version 1.1.3 (Download from CRAN)
-library(gridExtra) # version 2.3 (Download from CRAN)
-library(pmcalibration) # version 0.2.0 (Download from CRAN)
-# https://github.com/stephenrho/pminternal (newer version on GitHub)
-library(pminternal) # version 0.1.0 (Download from CRAN)
-library(ClinicalUtilityRecal) # version 0.1.0 (Download from CRAN)
+# library(dplyr) # version 1.1.4 (Download from CRAN)
+# library(magrittr) # version 2.0.3 (Download from CRAN)
+# library(tidyr) # version 1.3.1 (Download from CRAN)
+# library(ranger) # version 0.17.0 (Download from CRAN)
+# # https://github.com/mmiche/mysml
+# library(mysml) # version 0.1.0 (Download from GitHub)
+# library(ggplot2) # version 3.5.1 (Download from CRAN)
+# library(cowplot) # version 1.1.3 (Download from CRAN)
+# library(gridExtra) # version 2.3 (Download from CRAN)
+# library(pmcalibration) # version 0.2.0 (Download from CRAN)
+# # https://github.com/stephenrho/pminternal (newer version on GitHub)
+# library(pminternal) # version 0.1.0 (Download from CRAN)
+# library(ClinicalUtilityRecal) # version 0.1.0 (Download from CRAN)
 ```
 
 ### Packages that must be installed separately:
@@ -816,45 +864,7 @@ uci 0.2325372   0.2322735     0.2326451
 
 According to the detailed results, between 2 percent (5-fold CV, threshold probability 5 percent) and 14 percent (5-fold CV, threshold probability 5 percent) showed a recalibration improvement potential of the model's clinical utility, i.e., a relative minority across the 100 and 500 generated resamples. It is therefore not surprising to see in these summary results, that overall the standardized net benefit are almost identical, when comparing the original logistic regression model (column snbOrig), standard recalibration (sndStdRecal), and constrained recalibration (snbConstRecal). This is also the case with the bootstrap CV (not shown here).
 
-# Published clinical prediction model
-
-## Package documentation of our prediction model
-
-Our prediction model for the outcome new onset of alcohol use disorder is published as part of this predictAUDPsyCoLaus R package. When you installed and loaded this predictAUDPsyCoLaus R package, run the following code, to see the detailed documentation of the prediction model:
-```{r chunk28, echo=TRUE, eval = FALSE}
-# Load the package
-library(predictAUDPsyCoLaus)
-# Call the help page for the prediction model
-?predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel
-# Display the prediction model's estimates in the R console:
-cbind(coefficients(predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel))
-```
-
-## Applying our prediction model to an independent dataset
-
-Our prediction model can be applied for external validation purposes, by running the 'predict' command in R. Note that we have removed all of the original data from the object that is produced by fitting the logistic regression model to the original data.
-```{r chunk29, echo=TRUE, eval = FALSE}
-# External data with the same 8 predictors, which need to get the same variable names assigned to them, must be used as 'newdata' argument. The argument 'type', when set to 'response', will return the predicted probability of developing the outcome.
-predict(object=PsyCoLausAUDpredictionModel, newdata = ..., type="response")
-```
-
-## Prediction model fit to the original data
-
-This is the result of the fitted logistic regression model to the original data (*N* = 3654).
-```{r chunk29.1, echo=TRUE, eval = FALSE}
-                  Estimate Std. Error     z value     Pr(>|z|)
-(Intercept)    -5.35428124 0.45327878 -11.8123358 3.370649e-32
-Sex            -0.20722125 0.21757247  -0.9524240 3.408820e-01
-iSES15          0.13956629 0.08237573   1.6942647 9.021500e-02
-MARIE          -0.32800250 0.20372011  -1.6100644 1.073838e-01
-MDDPD2          0.28228634 0.20861346   1.3531549 1.760061e-01
-ADAPU2         -0.04888268 0.29199210  -0.1674110 8.670467e-01
-Week_ALC_type6  0.64022013 0.07350741   8.7096002 3.049485e-18
-smokingstatus   0.60040634 0.12836060   4.6774972 2.903975e-06
-inactivity      0.10690985 0.20812437   0.5136825 6.074740e-01
-```
-
-## Probability distribution per outcome category
+# Probability distribution per outcome category
 
 This is the last among four measures and plots, which Van Calster et al. (2024) regard as being essential in reporting a clinical prediction model.
 
@@ -868,7 +878,7 @@ p <-
 ggplot(data=probDistr, aes(x=firstAud, y=p_app)) +
     geom_violin() +
     geom_jitter(height = 0, width = 0.1) +
-    xlab(label="New-onset alcohol use disorder (DSM-5)") +
+    xlab(label="First-onset alcohol use disorder (DSM-5)") +
     ylab(label="Apparent predicted probability") +
     theme(
         panel.background = element_blank(),
@@ -880,7 +890,7 @@ ggplot(data=probDistr, aes(x=firstAud, y=p_app)) +
         legend.position = "none")
 ```
 
-### Alternative probability distribution
+## Alternative probability distribution
 
 Alternatively, this visualization may also be regarded as helpful. It shows the same probability distribution in a different way. The two vertical dashed lines show the threshold probabilities of 1 and of 5 percent. If 1 percent was selected, a lot of false positives (grey and at the right of the 1 percent dashed line) would get offered treatment. Whereas, if 5 percent was selected as threshold, all observed cases (red) between the two dashed lines would be missed, but also way fewer false positives (grey and at the right side of 5 percent dashed line) would get offered treatment.
 
@@ -994,27 +1004,34 @@ loaded via a namespace (and not attached):
 
 **References**
 
+Chang W, Cheng J, Allaire J, Sievert C, Schloerke B, Xie Y, Allen J, McPherson J, Dipert A, Borges B (2025). _shiny: Web Application Framework for R_. R package version 1.10.0.9001, [https://shiny.posit.co/](https://shiny.posit.co/).
+
+Collins, G. S., Dhiman, P., Ma, J., Schlussel, M. M., Archer, L., Van Calster, B., ... & Riley, R. D. (2024). Evaluation of clinical prediction models (part 1): from development to external validation. *bmj, 384*. [DOI](http://dx.doi.org/10.1136/bmj‑2023‑074819)
+
 Goldstein, N. D. (2024). Improved reporting of selection processes in clinical database research. Response to de Kok et al. *Journal of clinical epidemiology*. [DOI](https://doi.org/10.1016/j.jclinepi.2024.111373)
-
-Vickers, A. J., & Elkin, E. B. (2006). Decision curve analysis: a novel method for evaluating prediction models. *Medical Decision Making, 26*(6), 565-574. [DOI](https://doi.org/10.1177/0272989X06295361)
-
-Vickers, A. J., van Calster, B., & Steyerberg, E. W. (2019). A simple, step-by-step guide to interpreting decision curve analysis. *Diagnostic and prognostic research, 3*, 1-8. [DOI](https://doi.org/10.1186/s41512-019-0064-7)
-
-Van Calster, B., Collins, G. S., Vickers, A. J., Wynants, L., Kerr, K. F., Barreñada, L., ... & Steyerberg, E. W. (2024). Performance evaluation of predictive AI models to support medical decisions: Overview and guidance. [arXiv:2412.10288](https://doi.org/10.48550/arXiv.2412.10288)
 
 Janssens, A. C. J., & Martens, F. K. (2020). Reflection on modern methods: Revisiting the area under the ROC Curve. *International journal of epidemiology, 49*(4), 1397-1403. [DOI](https://doi.org/10.1093/ije/dyz274)
 
-Pavlou, M., Ambler, G., Qu, C., Seaman, S. R., White, I. R., & Omar, R. Z. (2024). An evaluation of sample size requirements for developing risk prediction models with binary outcomes. *BMC Medical Research Methodology, 24*(1), 146. [DOI](https://doi.org/10.1186/s12874-024-02268-5)
+Kerr, K. F., Brown, M. D., Zhu, K., & Janes, H. (2016). Assessing the clinical impact of risk prediction models with decision curves: guidance for correct interpretation and appropriate use. Journal of Clinical Oncology, 34(21), 2534-2540. [DOI](https://doi.org/10.1200/JCO.2015.65.5654)
 
 Koliopanos, G., Ojeda, F., & Ziegler, A. (2023). A Simple-to-Use R Package for Mimicking Study Data by Simulations. *Methods of Information in Medicine, 62*(03/04), 119-129. [DOI](https://doi.org/10.1055/a-2048-7692)
 
-Riley, R. D., & Collins, G. S. (2023). Stability of clinical prediction models developed using statistical or machine learning methods. *Biometrical Journal, 65*(8), 2200302. [DOI](https://doi.org/10.1002/bimj.202200302)
+Miché, M. (2025). _mysml: This Package Contains Supervised Machine Learning Functionality_. R
+  package version 0.1.0, [https://github.com/mmiche/mysml](https://github.com/mmiche/mysml)
+
+Mishra, A., McClelland, R. L., Inoue, L. Y., & Kerr, K. F. (2022). Recalibration methods for improved clinical utility of risk scores. Medical Decision Making, 42(4), 500-512. [DOI](https://doi.org/10.1177/0272989X211044697)
+
+Pavlou, M., Ambler, G., Qu, C., Seaman, S. R., White, I. R., & Omar, R. Z. (2024). An evaluation of sample size requirements for developing risk prediction models with binary outcomes. *BMC Medical Research Methodology, 24*(1), 146. [DOI](https://doi.org/10.1186/s12874-024-02268-5)
 
 Rhodes S (2024). _pminternal: Internal Validation of Clinical Prediction Models_. R
   package version 0.0.1, [https://github.com/stephenrho/pminternal](https://github.com/stephenrho/pminternal)
 
-Collins, G. S., Dhiman, P., Ma, J., Schlussel, M. M., Archer, L., Van Calster, B., ... & Riley, R. D. (2024). Evaluation of clinical prediction models (part 1): from development to external validation. *bmj, 384*. [DOI](http://dx.doi.org/10.1136/bmj‑2023‑074819)
+Riley, R. D., & Collins, G. S. (2023). Stability of clinical prediction models developed using statistical or machine learning methods. *Biometrical Journal, 65*(8), 2200302. [DOI](https://doi.org/10.1002/bimj.202200302)
 
-Mishra, A., McClelland, R. L., Inoue, L. Y., & Kerr, K. F. (2022). Recalibration methods for improved clinical utility of risk scores. Medical Decision Making, 42(4), 500-512. [DOI](https://doi.org/10.1177/0272989X211044697)
+Skubera, M., Korbmacher, M., Evans, T. R., Azevedo, F., & Pennington, C. R. (2025). International initiatives to enhance awareness and uptake of open research in psychology: a systematic mapping review. _Royal Society Open Science, 12(3)_, 241726. [DOI](https://doi.org/10.1098/rsos.241726)
 
-Kerr, K. F., Brown, M. D., Zhu, K., & Janes, H. (2016). Assessing the clinical impact of risk prediction models with decision curves: guidance for correct interpretation and appropriate use. Journal of Clinical Oncology, 34(21), 2534-2540. [DOI](https://doi.org/10.1200/JCO.2015.65.5654)
+Van Calster, B., Collins, G. S., Vickers, A. J., Wynants, L., Kerr, K. F., Barreñada, L., ... & Steyerberg, E. W. (2024). Performance evaluation of predictive AI models to support medical decisions: Overview and guidance. [arXiv:2412.10288](https://doi.org/10.48550/arXiv.2412.10288)
+
+Vickers, A. J., & Elkin, E. B. (2006). Decision curve analysis: a novel method for evaluating prediction models. *Medical Decision Making, 26*(6), 565-574. [DOI](https://doi.org/10.1177/0272989X06295361)
+
+Vickers, A. J., van Calster, B., & Steyerberg, E. W. (2019). A simple, step-by-step guide to interpreting decision curve analysis. *Diagnostic and prognostic research, 3*, 1-8. [DOI](https://doi.org/10.1186/s41512-019-0064-7)
