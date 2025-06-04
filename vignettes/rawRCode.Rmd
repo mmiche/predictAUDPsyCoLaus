@@ -1,0 +1,669 @@
+---
+title: "predictAUDPsyCoLaus vignette: Raw R code"
+author: "Marcel Miché"
+date: "2025-05-21"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{predictAUDPsyCoLaus vignette: Raw R code}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Reason for this separate vignette
+
+In order to run the code, copy paste it to an empty R script.
+
+```{r chunk1, echo=TRUE, eval = FALSE}
+# This is the copy pasted code from this package's HTML vignette. However, the explanations are not included here, except for some short comments.
+
+# In order to execute all code in this script, these four packages must be installed, and then be loaded, separately:
+library(rms) # version 8.0-0 (Download from CRAN)
+library(precrec) # version 0.14.2 (Download from CRAN)
+# https://github.com/mpavlou/samplesizedev
+library(samplesizedev) # version 1.0.0.0 (Download from GitHub)
+library(modgo) # version 1.0.1 (Download from CRAN)
+# -------------------------------------------------
+
+library(predictAUDPsyCoLaus)
+
+# Original PsyCoLaus data, used for this study of developing and evaluating a clinical prediction model for the outcome 'first onset alcohol use disorder'.
+# Users of the predictAUDPsyCoLaus package use the automatically loaded simulation data d:
+dim(d)
+addmargins(table(d$firstAud))
+prop.table(table(d$firstAud))*100
+
+# Repeated k-fold cross-validation - Setup ####
+
+# Code chunk 1 Start ---
+# Note: Setting a seed guarantees perfect reproducibility of the computation procedure. This is especially important, when random processes (simulated by the computer) are involved.
+set.seed(1)
+# 5-fold CV = 5 80/20 splits; 20 seeds = 20 repetitions of 5 fold = 100 final test results.
+seeds <- sample(1:10e6, size=20)
+cvLs <- mysml::myRepeatedkFoldcv(data=d, outcome="firstAud", folds = 5, stratify = TRUE, seeds=seeds)
+
+TrainLs <- cvLs$TrainLs
+TestLs <- cvLs$TestLs
+
+# Check stratification: Frequency of outcome (firstAud) being closely around 3.15 percent, both in the training and in the test subsets of the total sample.
+unique(unlist(lapply(TrainLs, FUN=function(x) mean(x$firstAud)))) # 0.03147451 0.03146375
+unique(unlist(lapply(TestLs, FUN=function(x) mean(x$firstAud)))) # 0.03146375 0.03150685
+# Across all training and test subsets, the outcome is always very close to .0315.
+# Code chunk 1 End -----
+
+# Repeated k-fold cross-validation - Run ####
+
+# Code chunk 2 Start ---
+# Make empty named list:
+predProbsLs <- sapply(c("logreg", "rf"),function(x) NULL) #
+preds <- c("Sex", "iSES15", "MARIE", "MDDPD2", "ADAPU2", "Week_ALC_type6", "smokingstatus", "inactivity")
+fmla <- formula(paste0("firstAud ~ ", paste0(preds, collapse = "+")))
+fmla.f <- formula(paste0("factor(firstAud) ~ ", paste0(preds, collapse = "+")))
+startTime <- Sys.time() # Takes approx. 30-40 seconds.
+for(m in 1:length(TrainLs)) {
+    # Select training and test subset
+    Train.m <- TrainLs[[m]]
+    Test.m <- TestLs[[m]]
+    
+    # Logistic regression
+    # -------------------
+    logreg_m <- applyLogreg(dataTrain=Train.m, dataTest=Test.m, frmla = fmla, outcome = "firstAud")
+    predProbsLs[["logreg"]][[m]] <- logreg_m$TestCV
+    
+    # Random forest
+    # -------------
+    set.seed(1)
+    rndmFrst_m <- applyRandomForest(dataTrain=Train.m, dataTest=Test.m, frmla.f = fmla.f, outcome = "firstAud")
+    predProbsLs[["rf"]][[m]] <- rndmFrst_m$TestCV
+}
+endTime <- Sys.time()
+difftime(endTime, startTime)
+# Code chunk 2 End -----
+
+
+# Code chunk 3 Start ---
+# Use standard recalibration of random forest pred. probs., before comparing logreg and rf. Reason: Niculescu-Mizil & Caruana (2005; https://doi.org/10.1145/1102351.1102430, page 5:
+# "If we add noise to the trees that bagging is averaging over, this noise will cause some [...]. We observe this effect most strongly with random forests [...]. Post-calibration seems to help mitigate this problem."
+for(i in 1:length(predProbsLs[["rf"]])) {
+    recalProbs <-
+        ClinicalUtilityRecal::stdRecal(y=predProbsLs[["rf"]][[i]]$observed,
+                                       p=predProbsLs[["rf"]][[i]]$predicted)
+    predProbsLs[["rf"]][[i]]$predicted <- recalProbs$p.std
+}
+# Code chunk 3 End -----
+
+
+# Code chunk 4 Start ---
+relRes <- mysml::computeRelevantResults(
+    predictionOutputLs = predProbsLs,
+    dcaReasonableThresholds = c(.01, .02, .03, .04, .05),
+    fullModelNames = c("Logistic regression",
+                       "Random forest"))
+# Code chunk 4 End -----
+
+
+# Code chunk 5 Start ---
+# Decision curve analysis (DCA)
+# dcaSelectType: One out of these three options: mnci, mnminmax, mnq1q3.
+# mnci: mean net benefit, with lower to upper 95 percent CI.
+# mnminmax: mean net benefit, with minimum to maximum value.
+# mnq1q3: mean net benefit, with 25th to 75th percentile.
+allDCALs <- visualizeMultipleDCA(dcaLs = relRes$dcaLs, dcaSelectType = "mnq1q3")
+allDCALs$logregNB
+allDCALs$rfNB
+# Code chunk 5 End -----
+
+
+# Code chunk 6 Start ---
+# Plot the DCA
+dcaPlotLs <- plotDCA(allDCA = allDCALs$allDCA, bothModels = FALSE)
+# Display the plots (with or without intervals)
+dcaPlotLs$dcaPlot1 # without interval
+dcaPlotLs$dcaPlot2 # with selected interval: mnci, mnminmax, or mnq1q3.
+# Code chunk 6 End -----
+
+
+# Code chunk 7 Start ---
+calibLRLs <- mysml::makeCalibPlotLs(calibLs=relRes$orderedObsLs, model="logreg")
+calibRFLs <- mysml::makeCalibPlotLs(calibLs=relRes$orderedObsLs, model="rf")
+
+calibLR <- mysml::avrgCalibPlotLs(calibPlotLs = calibLRLs, model="logreg")
+calibRF <- mysml::avrgCalibPlotLs(calibPlotLs = calibRFLs, model="rf")
+
+calibLRPlot <- mysml::compressCalibPlot(mnSpanLs = calibLR, model = "logreg")
+calibRFPlot <- mysml::compressCalibPlot(mnSpanLs = calibRF, model = "rf")
+
+min(calibLRPlot[,-5])
+min(calibRFPlot[,-5])
+
+max(calibLRPlot[,-5])
+max(calibRFPlot[,-5])
+
+calibXYmax <- .2
+
+lrCalAllSeeds <- 
+    ggplot(calibLRPlot, aes(x=mn_x, y=mn_y)) +
+    geom_errorbar(width=.005, aes(ymin=lci_y, ymax=uci_y), linewidth=1, color="grey") +
+    geom_point(size=2) +
+    geom_abline(aes(slope=1, intercept=0, linetype="Perfect calibration"), colour = "black", linewidth=1) +
+    scale_linetype_manual(NULL, values=c("Perfect calibration"=2)) +
+    
+    geom_vline(xintercept=.01, linetype="dashed", linewidth=.5) +
+    geom_vline(xintercept=.05, linetype="dashed", linewidth=.5) +
+    
+    xlab(label="Predicted probability") +
+    ylab(label="Observed proportion") +
+    xlim(c(0,calibXYmax)) + ylim(c(min(calibLRPlot$lci_y),calibXYmax)) +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.text=element_text(size=16),
+        legend.position = "top")
+# Code chunk 7 End -----
+
+
+# Code chunk 8 Start ---
+# Calibration results
+calibResultsLs <- lapply(relRes$calibLs, FUN=function(x) {
+    mysml::myCalib(calibDf = x, outcome="observed")
+})
+calibPerfWLs <- list()
+for(i in 1:length(calibResultsLs)) {
+    calibPerfWLs[[i]] <- calibResultsLs[[i]]$calibPerfW
+}
+calibDf <- dplyr::bind_rows(calibPerfWLs)
+rownames(calibDf) <- 1:nrow(calibDf)
+calibDf$model <- factor(rep(c("logreg", "randomForest"), levels=c("logreg", "randomForest")))
+
+# ICI (ici = integrated calibration index)
+# ----------
+summary(calibDf$ici[calibDf$model=="logreg"])
+summary(calibDf$ici[calibDf$model=="randomForest"])
+
+# Make boxplots.
+calibBoxPlot <- 
+    ggplot(data=calibDf, aes(x=model, y=ici)) +
+    geom_boxplot() +
+    theme(panel.background = element_blank(),
+          axis.text.x=element_text(size=16),
+          axis.title.x=element_text(size=16),
+          axis.text.y=element_text(size=16),
+          axis.title.y = element_text(size=16),
+          panel.border = element_rect(color="black", fill=NA))
+# Code chunk 8 End -----
+
+
+# Code chunk 9 Start ---
+# Discrimination
+logreg_rocauc <- unlist(lapply(predProbsLs[["logreg"]], FUN=function(x) {
+    precrec::auc(precrec::evalmod(scores=x[,"predicted"], labels=x[,"observed"]))$aucs[1]
+}))
+summary(logreg_rocauc)
+
+rf_rocauc <- unlist(lapply(predProbsLs[["rf"]], FUN=function(x) {
+    precrec::auc(precrec::evalmod(scores=x[,"predicted"], labels=x[,"observed"]))$aucs[1]
+}))
+summary(rf_rocauc)
+# Code chunk 9 End -----
+
+# Optimism corrected prediction performance ####
+
+# Code chunk 10 Start ---
+# Take the total dataset, then fit a logistic regression model to it.
+mod <- glm(firstAud ~ ., family = binomial(link="logit"), data = d)
+# Next, run the function validate from the pminternal R package.
+start <- Sys.time()
+set.seed(1)
+# Set the recommended 500 bootstrap repetitions.
+val <- pminternal::validate(fit = mod, method = "boot_optimism", B = 500)
+end <- Sys.time()
+difftime(end, start) # Between 2 and 3 Min.
+val
+# Code chunk 10 End -----
+
+
+# Code chunk 11 Start ---
+# Newly developed, on the basis of the boot_optimism function of the pminternal R package: Compute optimism corrected net benefit results.
+# Takes approx. 30 seconds.
+set.seed(1)
+dcaCorrected <- boot_optimismDCA(data=d, outcome = "firstAud", B=500, thresholds = seq(.01, .05, by=.01))
+round(dcaCorrected, digits=4)
+# Code chunk 11 End -----
+
+# Sensitivity analyses ####
+
+# Code chunk 12 Start ---
+# Compute required sample size N
+#
+samplesizedev::samplesizedev(outcome="Binary", S = 0.9, phi = 0.0315, c = 0.7, p= 8, nsim=100)
+#
+# Output in R console:
+# $rvs
+# [1] 4207
+# 
+# $sim
+# [1] 3550
+# --------
+# Select 3550 as required N, for the development of the model. Since we employed 5-fold cross-validation, we use 80 percent of the total sample for developing the model. If 3550 represent 80 percent, an N of 4438 represented 100 percent (total sample size).
+# Code chunk 12 End -----
+
+
+# Code chunk 13 Start ---
+# Binary variables of the dataset
+binary_vars <- c("firstAud", "ADAPU2", "inactivity", "MDDPD2", "Sex", "MARIE")
+# Number of repetitions of the mimicking simulations.
+modgoReps <- 500
+# Run the mimicking simulations. (Takes only a few seconds.)
+rawDataSim <- modgo::modgo(data=d, bin_variables = binary_vars, categ_variables = NULL, nrep=modgoReps, seed=1)
+# Bind all rows together.
+dSim <- dplyr::bind_rows(rawDataSim$simulated_data)
+# From dSim, draw the required sample size of N = 4438
+# 100% = 4438
+4438*.0315 # 140
+4438*(1-.0315) # 4298
+# Code chunk 13 End -----
+
+# Model instability ####
+
+# Code chunk 14 Start ---
+# pwts: prediction weights
+pwts <- coefficients(glm(firstAud ~ ., family = binomial(link="logit"), data=d))
+idxWithOutcome <- which(dSim$firstAud == 1)
+idxWithoutOutcome <- which(dSim$firstAud == 0)
+set.seed(9)
+seeds <- sample(1:1e+08, size=5000)
+wtsDiff <- c()
+start <- Sys.time() # Takes between 2 and 3 Min.
+for(i in seeds) {
+    set.seed(i)
+    idxSelect.y1 <- sample(idxWithOutcome, size=140)
+    set.seed(i)
+    idxSelect.y0 <- sample(idxWithoutOutcome, size=4298)
+    d_i <- dSim[c(idxSelect.y1, idxSelect.y0),]
+    mod_i <- glm(firstAud ~ ., family = binomial(link="logit"), data=d_i)
+    # Prediction weights
+    pwts_i <- coefficients(mod_i)
+    wtsDiff <- c(wtsDiff, sum(abs(pwts_i - pwts)))
+}
+end <- Sys.time()
+difftime(end, start)
+which(wtsDiff == min(wtsDiff)) # Index number between 1 and 5000.
+# BEWARE: Insert the index number (between 1 and 5000) in the squared brackets.
+# For example, if the index number was 4202:
+set.seed(seeds[4202])
+# Sample 3.15% from those with the outcome.
+idxSelect.y1 <- sample(idxWithOutcome, size=140)
+# Again, set index number:
+set.seed(seeds[4202])
+# Sample 96.85% from those without the outcome.
+idxSelect.y0 <- sample(idxWithoutOutcome, size=4298)
+# Finally, draw the selected rows of data.
+d4438 <- dSim[c(idxSelect.y1, idxSelect.y0),]
+# Code chunk 14 End -----
+
+
+# Code chunk 15 Start ---
+# Take the total mimicked dataset (d4438), then fit a logistic regression model to it.
+mod4438 <- glm(firstAud ~ ., family = binomial(link="logit"), data = d4438)
+# Next, run the function validate from the pminternal R package.
+start <- Sys.time() # Takes between 2 and 3 Min.
+set.seed(1)
+# Set the recommended 500 bootstrap repetitions.
+val2 <- pminternal::validate(fit = mod4438, method = "boot_optimism", B = 500)
+end <- Sys.time()
+difftime(end, start)
+# Code chunk 15 End -----
+
+# Use either 'val1' or 'val2' for all prediction stability visualizations.
+
+# Code chunk 16 Start ---
+# 1. Prediction stability
+# 2. Calibration stability
+# 3. MAPE stability (MAPE = mean absolute prediction error)
+# 4. Decision curve stability
+# 5. Classification instability index (CII)
+# Code chunk 16 End -----
+
+# Prediction stability ####
+
+# Code chunk 17 Start ---
+# 1.1 Prediction stability (select val1 or val2)
+stabilLs <- prediction_stability1(x=val1, smooth_bounds = TRUE)
+stabilDf <- data.frame(p_app=rep(stabilLs$stabilDf[,"p_app"], times=stabilLs$b),
+                       p_boot=unlist(stabilLs$stabilDf[,-1]))
+p <- 
+    ggplot(data=stabilDf, aes(x=p_app, y=p_boot)) +
+    geom_point(col="grey") +
+    geom_line(data=stabilLs$lims[,c(1,3)], aes(x=p_app, y=X2.5.), linetype="dashed") +
+    geom_line(data=stabilLs$lims[,c(2,3)], aes(x=p_app, y=X97.5.), linetype="dashed") +
+    xlab(label="Estimated risk from development model") +
+    ylab(label="Estimated risk from 500 bootstrap models") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.position = "none")
+# Code chunk 17 End -----
+
+# Calibration stability ####
+
+# Code chunk 18 Start ---
+# 2. Calibration stability  (select val1 or val2)
+curves <- calibration_stability1(x=val1)
+for(i in length(curves):1) {
+    if(i == length(curves)) {
+        p <- ggplot(data=curves[[i]], aes(x=p, y=pc)) +
+            geom_line(linetype="solid", colour="grey", linewidth=.2)
+        
+    } else if(i < length(curves) & i > 2) {
+        p <- p +
+            geom_line(data=curves[[i]], linetype="solid", colour="grey", linewidth=.2)
+    }
+}
+
+curvesDf <- dplyr::bind_rows(list(curves[[2]],
+                                  curves[[1]],
+                                  data.frame(p=seq(0,1,length.out=100),
+                                             pc=seq(0, 1, length.out=100)))
+)
+
+curvesDf$Source <- rep(c("Bootstrap", "Original", "Perfect calibration"), each=100)
+curvesDf$Source <- factor(curvesDf$Source, levels=c("Bootstrap", "Original", "Perfect calibration"))
+
+useColor <- c("Bootstrap" = "grey", "Original" = "black", "Perfect calibration" = "black")
+useLinetype <- c("solid", "solid", "dashed")
+
+p1 <- p +
+    geom_line(data=curvesDf, aes(x=p, y=pc, colour=Source, linetype=Source)) +
+    labs(colour=NULL) +
+    labs(linetype=NULL) +
+    scale_colour_manual(values = useColor) +
+    scale_linetype_manual(values = useLinetype) +
+    xlab(label="Estimated risk (original model/500 bootstrap models)") +
+    ylab(label="Observed outcome rate") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.text = element_text(size=14),
+        legend.position = "top",
+        legend.title = element_blank())
+# Code chunk 18 End -----
+
+# MAPE stability ####
+
+# Code chunk 19 Start ---
+# 3. MAPE stability (MAPE = mean absolute prediction error)
+# (select val1 or val2)
+stabilLs <- mape_stability1(x=val1)
+stabilLs$out$average_mape # val1 = 0.006800643
+
+p <- 
+    ggplot(data=stabilLs$mapeDf, aes(x=p_app, y=individual_mape)) +
+    geom_point(col="grey") +
+    xlab(label="Estimated risk from development model") +
+    ylab(label="MAPE") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.position = "none")
+# Code chunk 19 End -----
+
+# Decision curve stability ####
+
+# Code chunk 20 Start ---
+# 4. Decision curve stability (select val1 or val2)
+thresholds <- seq(0, .05, by=.01)
+curves <- dcurve_stability1(x=val1, thresholds = thresholds)
+# d must have 3654 rows for val1, or 4438 rows for val2.
+mod <- glm(firstAud ~ ., family=binomial(link="logit"), data=d)
+# Prepare addition of treat none and treat all visualizations:
+curveOrigLs <- mysml:::dca(inputDataset = data.frame(y=d$firstAud, p=mod$fitted.values),
+                           truth = "y", prob = "p", selectedThresholds = thresholds)
+curveOrigLs$plotTbl$label <- as.character(curveOrigLs$plotTbl$label)
+dcurveOrigTreatAll <- curveOrigLs$plotTbl[curveOrigLs$plotTbl$label=="Treat all",]
+dcurveOrigTreatNone <- curveOrigLs$plotTbl[curveOrigLs$plotTbl$label=="Treat none",]
+
+for(i in length(curves):1) {
+    if(i == length(curves)) {
+        p <- ggplot(data=curves[[i]], aes(x=threshold, y=net_benefit)) +
+            geom_line(linetype="solid", colour="grey", linewidth=.2)
+        
+    } else if(i < length(curves) & i > 2) {
+        p <- p +
+            geom_line(data=curves[[i]], linetype="solid", colour="grey", linewidth=.2)
+    }
+}
+
+curvesDf <- dplyr::bind_rows(list(curves[[2]],
+                                  curves[[1]],
+                                  dcurveOrigTreatAll,
+                                  dcurveOrigTreatNone))
+
+curvesDf$Source <- c(rep("Bootstrap", times=length(thresholds)),
+                     rep("Original", times=length(thresholds)),
+                     rep("Treat all", times=length(thresholds)),
+                     rep("Treat none", times=length(thresholds)))
+
+curvesDf$Source <- factor(curvesDf$Source, levels=c("Bootstrap", "Original", "Treat all", "Treat none"))
+
+useColor <- c("Bootstrap" = "grey", "Original" = "black", "Treat all" = "black", "Treat none" = "black")
+useLinetype <- c("solid", "solid", "dashed", "dotted")
+htbPlot <- function(x) paste0("1:", round((1-x)/x, digits=2))
+
+p1 <- p +
+    geom_line(data=curvesDf, aes(x=threshold, y=net_benefit, colour=Source, linetype=Source), linewidth=.75) +
+    labs(colour=NULL) +
+    labs(linetype=NULL) +
+    scale_colour_manual(values = useColor) +
+    scale_linetype_manual(values = useLinetype) +
+    scale_x_continuous(
+        sec.axis = dup_axis(name="Harm-to-benefit ratio", labels=htbPlot)) +
+    xlab(label="Threshold probability") +
+    ylab(label="Net benefit (original model/500 bootstrap models)") +
+    coord_cartesian(xlim=c(0, .05), ylim=c(0,.0315)) +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="black", fill=NA),
+        legend.text = element_text(size=14),
+        legend.position = "top",
+        legend.title = element_blank())
+# Code chunk 20 End -----
+
+# Classification instability index ####
+
+# Code chunk 21 Start ---
+# 5. Classification instability index (CII) (select val1 or val2; also select threshold = .01, ..., .05)
+classifStabilityDf <- classification_stability1(x=val1, threshold = .03)
+p <- 
+    ggplot(data=classifStabilityDf, aes(x=p_orig, y=cii)) +
+    geom_point(colour="grey") +
+    geom_vline(xintercept=.03, linetype="dashed") +
+    xlab(label="Estimated risk from development model") +
+    ylab(label="CII") +
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        panel.border = element_rect(color="grey", fill=NA),
+        legend.position = "none")
+# Code chunk 21 End -----
+
+# Recalibration: Potential for improved net benefit? ####
+
+# Repeated 5-fold CV
+
+# Code chunk 22 Start ---
+# 100 cross-validated results
+# ---------------------------
+# Source: 5-fold CV, 20 repetitions = 100 performance results.
+# The original model's predicted probabilities.
+# predProbsLs (either from N = 3654 or from N = 4438)
+
+collectLs <- list()
+start <- Sys.time() # Takes between 1 to 1.5 Mins.
+for(r in seq(.01, .05, by=.01)) {
+    recalLRCheckLs <- list()
+    for(b in 1:length(predProbsLs[["logreg"]])) {
+        
+        recalLRCheckLs[[b]] <- snbVals(
+            y=predProbsLs[["logreg"]][[b]]$observed,
+            p=predProbsLs[["logreg"]][[b]]$predicted,
+            r=r)
+    }
+    recalLRCheckDf <- dplyr::bind_rows(recalLRCheckLs)
+    recalLRCheckDf$rsmp <- 1:nrow(recalLRCheckDf)
+    collectLs[[paste0("r", r)]] <- recalLRCheckDf
+}
+end <- Sys.time()
+difftime(end, start)
+# Code chunk 22 End -----
+
+# Bootstrap CV
+
+# Code chunk 23 Start ---
+set.seed(1)
+bootDf <- boot_optimism1(data=d, outcome = "firstAud", B=500)
+dim(bootDf)
+colnames(bootDf) <- c(paste0("p_orig00", 1:9), paste0("p_orig0", 10:99), paste0("p_orig", 100:500))
+bootDf$y <- d$firstAud
+# Code chunk 23 End -----
+
+# Recalibration stability ####
+
+# Code chunk 24 Start ---
+start <- Sys.time() # Takes approx. 30 Mins.
+collectLs <- list()
+for(r in seq(.01, .05, by=.01)) {
+    recalLRCheckLs <- list()
+    for(b in 1:500) {
+        
+        recalLRCheckLs[[b]] <- snbVals(
+            y=bootDf$y,
+            p=bootDf[,b],
+            r=r)
+    }
+    recalLRCheckDf <- dplyr::bind_rows(recalLRCheckLs)
+    recalLRCheckDf$rsmp <- 1:nrow(recalLRCheckDf)
+    collectLs[[paste0("r", r)]] <- recalLRCheckDf
+}
+end <- Sys.time()
+difftime(end, start)
+# Code chunk 24 End -----
+
+
+# Code chunk 25 Start ---
+recalStability <- lapply(X=collectLs, FUN = function(x) {
+    xTmp <- recalPotential(x)
+    list(tbl=table(xTmp), ptbl=prop.table(table(xTmp)))
+})
+dplyr::bind_rows(recalStability)
+# Code chunk 25 End -----
+
+
+# Code chunk 26 Start ---
+# Visualize
+select <- 3 # Threshold probabilities: 1 = .01, 2 = .02, 3 = .03, 4 = .04, 5 = .05.
+data.r <- collectLs[[select]]
+# snb = standardized net benefit, Rsmp = resample.
+snbRecal100 <- snbRsmpPlot(data=data.r)
+# Code chunk 26 End -----
+
+
+# Code chunk 27 Start ---
+# Summarize (mean snb and 95% lower and upper CI bound)
+lapply(collectLs, function(x) {
+    apply(X=x[,2:4], 2, mysml::mnci)
+})
+# Code chunk 27 End -----
+
+# Published clinical prediction model ####
+
+# Code chunk 28 Start ---
+# Load the package
+library(predictAUDPsyCoLaus)
+# Call the help page for the prediction model
+?predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel
+# Display the prediction model's estimates in the R console:
+cbind(coefficients(predictAUDPsyCoLaus::PsyCoLausAUDpredictionModel))
+# Code chunk 28 End -----
+
+# Code chunk 29 Start ---
+# External data with the same 8 predictors, which need to get the same variable names assigned to them, must be used as 'newdata' argument. The argument 'type', when set to 'response', will return the predicted probability of developing the outcome.
+# As 'external' data, use in this script a little subset of the data d, which is part of this package.
+d_subset <- d[c(5, 35, 599, 1697),]
+predict(object=PsyCoLausAUDpredictionModel, newdata = d_subset, type="response")
+# Code chunk 29 End -----
+
+
+# Code chunk 30 Start ---
+# Display probability distribution, as recommended by Van Calster et al. (2024; https://doi.org/10.48550/arXiv.2412.10288)
+# Apparent = The full dataset is used for developing and for 'validating' the prediction model.
+pApparent <- glm(firstAud ~ ., family = binomial(link="logit"), data=d)$fitted.values
+# probDistr: Probability distribution
+probDistr <- data.frame(firstAud=as.factor(d$firstAud), p_app=pApparent)
+# Display the probability distribution
+p <- 
+    ggplot(data=probDistr, aes(x=firstAud, y=p_app)) +
+        geom_violin() +
+        geom_jitter(height = 0, width = 0.1) +
+        xlab(label="First-onset alcohol use disorder (DSM-5)") +
+        ylab(label="Apparent predicted probability") +
+        theme(
+            panel.background = element_blank(),
+            axis.text.x=element_text(size=16),
+            axis.title.x=element_text(size=16),
+            axis.text.y=element_text(size=16),
+            axis.title.y = element_text(size=16),
+            panel.border = element_rect(color="grey", fill=NA),
+            legend.position = "none")
+# Code chunk 30 End -----
+
+# Code chunk 31 Start ---
+# Display probability distribution in an alternative way.
+probDistrOrdered <- probDistr[order(probDistr$firstAud),]
+probDistrOrdered$id <- 1:nrow(probDistrOrdered)
+p <- 
+    ggplot(data=probDistrOrdered, aes(x=p_app, y=id, col=firstAud)) +
+    geom_point() +
+    geom_vline(xintercept = c(.01, .05), linetype = "dashed") +
+    # scale_color_manual(values=c("0"="gray", "1"="red")) +
+    scale_color_manual(values=c("0"="gray", "1"="black")) +
+    xlab(label="Apparent predicted probability") +
+    ylab(label="Study sample (N = 3,654)") +
+    # ylab(label="Study sample (N = 4,438)") +
+    
+    theme(
+        panel.background = element_blank(),
+        axis.text.x=element_text(size=16),
+        axis.title.x=element_text(size=16),
+        axis.text.y=element_text(size=16),
+        axis.title.y = element_text(size=16),
+        legend.text = element_text(size=14),
+        legend.title = element_text(size=14),
+        panel.border = element_rect(color="grey", fill=NA))
+# Code chunk 31 End -----
+```

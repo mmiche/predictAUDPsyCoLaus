@@ -6,7 +6,7 @@ In order to download the predictAUDPsyCoLaus package, please follow these instru
 ```R
 install.packages("remotes", dependencies=TRUE)
 ```
-2. The `predictAUDPsyCoLaus` package can now be installed from GitHub, which automatically will prompt to install (or update) other R packages.
+2. The `predictAUDPsyCoLaus` package can now be installed from GitHub, which automatically will prompt to install (or update) other R packages. Please enter the number 1 in the R console, when you read the questions whether you want to install all of the packages that are listed in the console.
 ```R
 remotes::install_github(repo="https://github.com/mmiche/predictAUDPsyCoLaus",
                       dependencies = "Imports", build_vignettes = TRUE)
