@@ -59,6 +59,17 @@
 #' # output = predicted probability to develop alcohol use disorder.
 #'  predict(object = PsyCoLausAUDpredictionModel, newdata = d_subset,
 #'  type = "response")
+#' # Alternatively, compute predicted probability with x percent confidence
+#' # interval (CI), e.g., x = 95.
+#' # prlo: predicted log-odds
+#' prlo <- predict(object = PsyCoLausAUDpredictionModel,
+#' newdata = d_subset, se.fit = TRUE)
+#' # Lower 95 (l95) and upper 95 (u95) percent CI:
+#' l95 <- prlo$fit + qnorm(.025) * prlo$se.fit
+#' u95 <- prlo$fit + qnorm(.975) * prlo$se.fit
+#' # Predicted probabilities (plogis(prlo)) with 95 percent CI
+#' data.frame(predProb=plogis(prlo$fit),
+#' predProbLower95=plogis(l95), predProbUpper95=plogis(u95))
 #'
 #' @docType data
 #' @keywords model
