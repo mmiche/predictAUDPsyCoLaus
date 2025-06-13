@@ -33,7 +33,7 @@
 #' @export
 #
 applyRandomForest <- function(dataTrain=NULL, dataTest=NULL, frmla.f=NULL, outcome="y") {
-    
+
     if(is.null(frmla.f)) {
         rfPred <- ranger::ranger(factor(y) ~ ., data = dataTrain, probability = TRUE)
     } else {
@@ -43,10 +43,10 @@ applyRandomForest <- function(dataTrain=NULL, dataTest=NULL, frmla.f=NULL, outco
     rfCV <- predict(object=rfPred, data=dataTest, type = "response")$predictions[,"1"]
 
     randomForestOut <- list()
-    randomForestOut[["ApparentCV"]] <- data.frame(observed=dataTrain[,outcome],
+    randomForestOut[["ApparentCV"]] <- data.frame(observed=dataTrain[[outcome]],
                                             predicted=apparentCV,
                                             ids=rownames(dataTrain))
-    randomForestOut[["TestCV"]] <- data.frame(observed=dataTest[,outcome],
+    randomForestOut[["TestCV"]] <- data.frame(observed=dataTest[[outcome]],
                                         predicted=rfCV,
                                         ids=rownames(dataTest))
     return(randomForestOut)

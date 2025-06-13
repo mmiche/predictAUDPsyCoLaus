@@ -3,7 +3,7 @@
 \docType{data}
 \name{PsyCoLausAUDpredictionModel}
 \alias{PsyCoLausAUDpredictionModel}
-\title{Prediction model to predict new onset alcohol use disorder.}
+\title{Prediction model to predict first onset alcohol use disorder.}
 \format{
 A list with 23 elements
 
@@ -15,11 +15,11 @@ Instruction of how to use our prediction model in R:
   \item Make sure your data stems from a general community adult sample. If not, consider recalibration (Van Calster et al., 2019).
   \item Make sure your data contains the eight predictors, which we list below.
   \item Make sure that the coding of all predictors concur with our coding.
-  \item Make sure the outcome in your data is new onset alcohol use disorder, according to DSM-5.
+  \item Make sure the outcome in your data is first onset alcohol use disorder, according to DSM-5.
   \item Before applying our prediction model to your data, rename your predictor columns, so that they match our predictor names.
 }
 
-List of the eight predictors which we used to predict new-onset of alcohol use disorder (according to DSM-5):
+List of the eight predictors which we used to predict first-onset of alcohol use disorder (according to DSM-5):
 
 \enumerate{
   \item Sex (0 = male, 1 = female)
