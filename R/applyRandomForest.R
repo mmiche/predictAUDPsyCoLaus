@@ -33,7 +33,7 @@
 #' @export
 #
 applyRandomForest <- function(dataTrain=NULL, dataTest=NULL, frmla.f=NULL, outcome="y") {
-
+    
     if(is.null(frmla.f)) {
         rfPred <- ranger::ranger(factor(y) ~ ., data = dataTrain, probability = TRUE)
     } else {

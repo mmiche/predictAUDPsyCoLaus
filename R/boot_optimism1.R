@@ -19,6 +19,7 @@
 #' @importFrom pbapply pbapply
 #' @importFrom stats binomial family glm predict
 #' @importFrom stats formula
+#' @importFrom mysml dca_plotfun
 #
 #' @examples
 #' # See the accompanying R script and this package's vignette,

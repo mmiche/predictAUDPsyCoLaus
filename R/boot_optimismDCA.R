@@ -26,6 +26,7 @@
 #' @importFrom pbapply pbapply
 #' @importFrom stats binomial family glm predict
 #' @importFrom stats formula
+#' @importFrom tibble tibble
 #
 #' @examples
 #' # See the accompanying R script and this package's vignette,
@@ -47,7 +48,7 @@ boot_optimismDCA <- function (data, outcome="newAud", B = 200, thresholds = NULL
     # if (missing(score_fun)) {
     #     score_fun <- pminternal::score_binary
     # }
-    
+
     # --------------------------------------
     # This is a minimally modified version of model_fun and of
     # pred_fun, see Examples of function pminternal::boot_optimism.
@@ -56,18 +57,18 @@ boot_optimismDCA <- function (data, outcome="newAud", B = 200, thresholds = NULL
         fmla <- formula(paste(outcome, "~."))
         glm(fmla, data=data, family="binomial")
     }
-    
+
     pred_fun <- function(model, data){
         predict(model, newdata=data, type="response")
     }
     # --------------------------------------
-    
+
     method <- "boot"
     fit <- model_fun(data = data)
     p_app <- pred_fun(model = fit, data = data)
     y <- data[[outcome]]
 
-    dc_app <- dca_fun(y=y, p=p_app, thresholds = thresholds)
+    dc_app <- mysml::dca_plotfun(y=y, p=p_app, dcaReasonableThresholds = thresholds)
 
     # score_app <- score_fun(y = y, p = p_app, ...)
     n <- nrow(data)
@@ -107,10 +108,10 @@ boot_optimismDCA <- function (data, outcome="newAud", B = 200, thresholds = NULL
         model_i <- model_fun(data = data_i)
         # if (method == "boot") {
             p_orig <- pred_fun(model = model_i, data = data)
-            dca_orig <- dca_fun(y=y, p=p_orig, thresholds = thresholds)
+            dca_orig <- mysml::dca_plotfun(y=y, p=p, dcaReasonableThresholds = thresholds)
 
             p_boot <- pred_fun(model = model_i, data = data_i)
-            dca_boot <- dca_fun(y=data_i[[outcome]], p=p_boot, thresholds = thresholds)
+            dca_boot <- mysml::dca_plotfun(y=data_i[[outcome]], p=p_boot, dcaReasonableThresholds = thresholds)
 
             # score_orig <- score_fun(y = data[[outcome]], p = p_orig,
             #                         ...)

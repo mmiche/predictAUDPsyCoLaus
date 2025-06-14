@@ -20,6 +20,8 @@
 #' @author Stephen Rhodes (see \strong{Details})
 #
 #' @importFrom pminternal get_stability
+#' @importFrom mysml dca_plotfun
+#' @importFrom tibble tibble
 #
 #' @examples
 #' # See the accompanying R script and this package's vignette,
@@ -36,7 +38,7 @@ dcurve_stability1 <- function(x, thresholds) {
     y <- stabil$y
     stabil <- stabil$stability
     curves <- apply(stabil, 2, function(p) {
-        dca_fun(y=y, p=p, thresholds = thresholds)
+        mysml::dca_plotfun(y=y, p=p, dcaReasonableThresholds = thresholds)
     })
     return(curves)
 }

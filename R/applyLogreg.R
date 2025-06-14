@@ -28,7 +28,7 @@
 #' @export
 #
 applyLogreg <- function(dataTrain=NULL, dataTest=NULL, frmla=NULL, outcome="y") {
-
+    
     if(is.null(frmla)) {
         glmPred <- glm(y ~ ., family = binomial(link="logit"), data = dataTrain)
     } else {
@@ -36,7 +36,7 @@ applyLogreg <- function(dataTrain=NULL, dataTest=NULL, frmla=NULL, outcome="y") 
     }
     apparentCV <- predict(object=glmPred, newdata=dataTrain, type = "response")
     glmCV <- predict(object=glmPred, newdata=dataTest, type = "response")
-
+    
     logregOut <- list()
     logregOut[["ApparentCV"]] <- data.frame(observed=dataTrain[[outcome]],
                                             predicted=apparentCV,
