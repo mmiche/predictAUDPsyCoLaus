@@ -100,7 +100,7 @@ boot_optimismDCA <- function (data, outcome="newAud", B = 200, thresholds = NULL
     parallel::clusterExport(cl,
                             varlist =
                                 c("B", "data", "indices", "wt", "method",
-                                  "model_fun", "pred_fun", "dca_fun"),
+                                  "model_fun", "pred_fun", "dca_plotfun"),
                             envir = environment())
 
     S <- pbapply::pblapply(seq(B), function(i) {
