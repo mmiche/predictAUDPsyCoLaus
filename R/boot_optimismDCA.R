@@ -108,7 +108,7 @@ boot_optimismDCA <- function (data, outcome="newAud", B = 200, thresholds = NULL
         model_i <- model_fun(data = data_i)
         # if (method == "boot") {
             p_orig <- pred_fun(model = model_i, data = data)
-            dca_orig <- mysml::dca_plotfun(y=y, p=p, dcaReasonableThresholds = thresholds)
+            dca_orig <- mysml::dca_plotfun(y=y, p=p_orig, dcaReasonableThresholds = thresholds)
 
             p_boot <- pred_fun(model = model_i, data = data_i)
             dca_boot <- mysml::dca_plotfun(y=data_i[[outcome]], p=p_boot, dcaReasonableThresholds = thresholds)
