@@ -28,8 +28,6 @@
 #'
 #' \insertRef{tidyr2024}{predictAUDPsyCoLaus}
 #'
-#' \insertRef{ranger2017}{predictAUDPsyCoLaus}
-#'
 #' \insertRef{mysml2024}{predictAUDPsyCoLaus}
 #'
 #' \insertRef{ggplot22016}{predictAUDPsyCoLaus}

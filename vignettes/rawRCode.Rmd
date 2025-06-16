@@ -1,7 +1,7 @@
 ---
 title: "predictAUDPsyCoLaus vignette: Raw R code"
 author: "Marcel Miché"
-date: "2025-05-21"
+date: "2025-06-16"
 output: html_document
 vignette: >
   %\VignetteIndexEntry{predictAUDPsyCoLaus vignette: Raw R code}
@@ -70,13 +70,13 @@ for(m in 1:length(TrainLs)) {
     
     # Logistic regression
     # -------------------
-    logreg_m <- applyLogreg(dataTrain=Train.m, dataTest=Test.m, frmla = fmla, outcome = "firstAud")
+    logreg_m <- mysml::applyLogreg(dataTrain=Train.m, dataTest=Test.m, frmla = fmla, outcome = "firstAud")
     predProbsLs[["logreg"]][[m]] <- logreg_m$TestCV
     
     # Random forest
     # -------------
     set.seed(1)
-    rndmFrst_m <- applyRandomForest(dataTrain=Train.m, dataTest=Test.m, frmla.f = fmla.f, outcome = "firstAud")
+    rndmFrst_m <- mysml::applyRandomForest(dataTrain=Train.m, dataTest=Test.m, frmla.f = fmla.f, outcome = "firstAud")
     predProbsLs[["rf"]][[m]] <- rndmFrst_m$TestCV
 }
 endTime <- Sys.time()
