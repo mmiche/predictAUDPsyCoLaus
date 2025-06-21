@@ -21,7 +21,7 @@
 #' \enumerate{
 #'   \item Sex (0 = male, 1 = female)
 #'   \item iSES15 (Socio-economic status (Hollingshead (1975); 1 = lowest to 5 = highest))
-#'   \item MARIE (Marital status, 0 = not married, 1 = married)
+#'   \item MARIE (Marital status, 0 = not married/cohabiting, 1 = married/cohabiting)
 #'   \item MDDPD2 (lifetime major depressive disorder diagnosis (according to DSM-IV-TR), 0 = no, 1 = yes)
 #'   \item ADAPU2 (lifetime any anxiety disorder diagnosis (includes agoraphobia, social anxiety disorder, panic disorder, and generalized anxiety disorder; according to DSM-IV-TR), 0 = no, 1 = yes)
 #'   \item Week_ALC_type6 (Description below this list, 1 = least to 6 = most)
