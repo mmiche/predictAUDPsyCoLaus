@@ -96,19 +96,19 @@ For installation details of the following packages, e.g., to copy and paste pack
 ### Packages that will automatically be installed, when installing 'predictAUDPsyCoLaus':
 
 ```{r chunk001, echo=TRUE, eval = FALSE}
-# library(dplyr) # version 1.1.4 (Download from CRAN)
-# library(magrittr) # version 2.0.3 (Download from CRAN)
-# library(tidyr) # version 1.3.1 (Download from CRAN)
-# library(ranger) # version 0.17.0 (Download from CRAN)
-# # https://github.com/mmiche/mysml
-# library(mysml) # version 0.1.0 (Download from GitHub)
-# library(ggplot2) # version 3.5.1 (Download from CRAN)
-# library(cowplot) # version 1.1.3 (Download from CRAN)
-# library(gridExtra) # version 2.3 (Download from CRAN)
-# library(pmcalibration) # version 0.2.0 (Download from CRAN)
-# # https://github.com/stephenrho/pminternal (newer version 0.1.1 on GitHub)
-# library(pminternal) # version 0.1.0 (Download from CRAN)
-# library(ClinicalUtilityRecal) # version 0.1.0 (Download from CRAN)
+library(dplyr) # version 1.1.4 (Download from CRAN)
+library(magrittr) # version 2.0.3 (Download from CRAN)
+library(tidyr) # version 1.3.1 (Download from CRAN)
+library(ranger) # version 0.17.0 (Download from CRAN)
+# https://github.com/mmiche/mysml
+library(mysml) # version 0.1.0 (Download from GitHub)
+library(ggplot2) # version 3.5.1 (Download from CRAN)
+library(cowplot) # version 1.1.3 (Download from CRAN)
+library(gridExtra) # version 2.3 (Download from CRAN)
+library(pmcalibration) # version 0.2.0 (Download from CRAN)
+# https://github.com/stephenrho/pminternal (newer version 0.1.1 on GitHub)
+library(pminternal) # version 0.1.0 (Download from CRAN)
+library(ClinicalUtilityRecal) # version 0.1.0 (Download from CRAN)
 ```
 
 ### Packages that must be installed separately:
